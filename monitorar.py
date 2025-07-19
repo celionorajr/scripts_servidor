@@ -26,7 +26,50 @@ def enviar_email_reinicio():
     msg['From'] = EMAIL_USER
     msg['To'] = ', '.join(DESTINATARIOS)
     data_hora = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
-    html = f"""<html><body><h2>Reinicialização do Servidor - {UNIDADE}</h2><p>O servidor foi reiniciado em <strong>{data_hora}</strong>.</p></body></html>"""
+    html = f"""
+    
+    <!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>⚠️ Alerta de Reinicialização - {UNIDADE}</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #fefefe; margin: 0; padding: 0;">
+    <div style="max-width: 600px; margin: 30px auto; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 0 12px rgba(255, 0, 0, 0.15); overflow: hidden;">
+        
+        <!-- Cabeçalho de alerta -->
+        <div style="background-color: #c62828; color: white; text-align: center; padding: 20px;">
+            <h2 style="margin: 0; font-size: 22px;">⚠️ ALERTA DE REINICIALIZAÇÃO</h2>
+            <p style="margin: 5px 0 0;">Servidor PACS - {UNIDADE}</p>
+        </div>
+
+        <!-- Conteúdo principal -->
+        <div style="padding: 25px;">
+            <p style="font-size: 16px; color: #333;">
+                Este é um <strong>aviso automático</strong> indicando que o servidor foi reiniciado.
+            </p>
+
+            <div style="background-color: #fff3cd; border-left: 6px solid #ffc107; padding: 15px 20px; margin: 20px 0; border-radius: 6px;">
+                <p style="margin: 0; font-size: 16px;">
+                    📅 <strong>Data e Hora:</strong><br>
+                    <span style="font-size: 18px; color: #856404;"><strong>{data_hora}</strong></span>
+                </p>
+            </div>
+
+            <p style="font-size: 15px; color: #555;">
+                Recomendamos verificar se todos os serviços essenciais foram iniciados corretamente após o reboot.
+            </p>
+        </div>
+
+        <!-- Rodapé -->
+        <div style="background-color: #f5f5f5; text-align: center; padding: 18px;">
+            <p style="margin: 5px 0;">🔧 Suporte Técnico - Equipe Polos</p>
+        </div>
+    </div>
+</body>
+</html>
+    
+    """
     msg.attach(MIMEText(html, 'html'))
 
     try:

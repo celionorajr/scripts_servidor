@@ -11,7 +11,7 @@ LOCALE="pt_BR.UTF-8"
 TIMEZONE="America/Sao_Paulo"
 SSH_PORT=2070
 PACKAGES=("bridge-utils" "ifenslave" "net-tools" "python3-pip")
-PYTHON_PIP_PACKAGES=("psutil")
+PYTHON_PIP_PACKAGES=("psutil" "matplotlib")
 
 # ------- CORES E EMOJIS ---------
 RED="\e[31m"

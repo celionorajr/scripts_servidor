@@ -53,15 +53,64 @@ if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or tamanh
 
     # Corpo do email
     corpo = f"""
-    <html>
-    <body>
-        <h2>Alerta Automático - Servidor PACS {unidade}</h2>
-        <p><strong>HD principal</strong> atingiu <strong>{uso_principal}%</strong> de uso.</p>
-        <p><strong>HD de backup</strong>: {'sem backup configurado' if not caminho_hd_backup else f'{uso_backup}% de uso'}</p>
-        <p>Considere limpeza ou expansão.</p>
-    </body>
-    </html>
-    """
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Alerta Polos - Servidor PACS {unidade}</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0;">
+    <div style="max-width: 600px; margin: 20px auto; background-color: #fff; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+        
+        <div style="background-image: url('https://i.imgur.com/oGNaMki.jpeg'); background-size: cover; background-position: center; height: 150px; border-radius: 10px 10px 0 0;">
+        </div>
+        
+        <div style="padding: 20px;">
+            <p><strong>Este é um alerta automático do servidor PACS {unidade}</strong></p>
+            <p>Atenção! O uso do HD principal está em <span style="font-weight: bold; color: #d9534f; font-size: 18px;">{uso_principal}%</span> e está acima do limite de {limite_uso_hd_principal}%!</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Disco</th>
+                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Tamanho Total</th>
+                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Espaço Usado</th>
+                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Espaço Livre</th>
+                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Uso (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 10px;">HD Principal</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_total_principal / (1024 ** 3):.2f} GB</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_usado_principal / (1024 ** 3):.2f} GB</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_livre_principal / (1024 ** 3):.2f} GB</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{uso_principal}%</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 10px;">HD de Backup</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_total_backup / (1024 ** 3):.2f} GB</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_usado_backup / (1024 ** 3):.2f} GB</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_livre_backup / (1024 ** 3):.2f} GB</td>
+                        <td style="border: 1px solid #ddd; padding: 10px;">{uso_backup}%</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="font-weight: bold; color: #d9534f; font-size: 16px;">Por favor, entre em contato com a equipe da Polos o mais rápido possível.</p>
+            <p><strong>Recomendamos considerar a expansão do armazenamento com um HD de 6TB.</strong></p>
+        </div>
+
+        <div style="background-color: #f1f1f1; text-align: center; padding: 20px; border-top: 1px solid #ccc; border-radius: 0 0 10px 10px;">
+            <p>Atenciosamente,</p>
+            <p><strong>Suporte Polos</strong></p>
+            <p><a href="https://wa.me/9833024038" target="_blank" style="color: #0275d8; text-decoration: none;">Entre em contato pelo WhatsApp</a></p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 
     msg = MIMEMultipart()
     msg["From"] = remetente
