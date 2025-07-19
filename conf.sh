@@ -95,6 +95,48 @@ for pkg in "${PYTHON_PIP_PACKAGES[@]}"; do
 done
 msg_success "Pacotes Python instalados."
 
+# === INSTALAR DEPENDÊNCIA PYTHON PARA .env ===
+msg_info "Instalando suporte ao carregamento de arquivos .env com python-dotenv..."
+pip3 install python-dotenv && msg_success "python-dotenv instalado."
+
+# === CRIAR ARQUIVO .env PADRÃO ===
+ENV_FILE="/root/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    msg_info "Criando arquivo .env padrão em $ENV_FILE..."
+
+    cat <<EOF > "$ENV_FILE"
+# === Identificação da Unidade ===
+UNIDADE=Hospital ABC
+
+# === Caminhos dos HDs ===
+HD_PRINCIPAL=/mnt/storage0
+HD_BACKUP=
+
+# === Configurações de E-mail ===
+EMAIL_REMETENTE=suporte@polos.tec.br
+EMAIL_SENHA=*S1spolos#
+EMAIL_SMTP_HOST=smtp.hostinger.com
+EMAIL_SMTP_PORT=587
+EMAIL_DESTINATARIOS=suporte@polos.tec.br,cnoraj@gmail.com
+
+# === Limites para alerta ===
+LIMITE_USO_HD_PRINCIPAL=80
+LIMITE_LIVRE_BACKUP_GB=400
+
+# === Controle do monitoramento ===
+CONTROLE_ARQUIVO=/root/ultimo_envio.txt
+LOCK_FILE=/tmp/monitor_lock
+TEMPO_MINIMO_ENVIO=300
+EOF
+
+    msg_success "Arquivo .env criado com valores padrão."
+else
+    msg_warn "Arquivo .env já existe. Nenhuma modificação feita."
+fi
+
+msg_info "⚙️  Você pode editar o arquivo /root/.env para ajustar os dados da unidade."
+
+
 msg_info "Configurando SSH para usar porta ${SSH_PORT} ${EMOJI_SSH}..."
 sudo sed -i "s/#Port 22/Port $SSH_PORT/" /etc/ssh/sshd_config
 sudo systemctl restart sshd
