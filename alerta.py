@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import sys
 from dotenv import load_dotenv
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import psutil
 import logging
+from datetime import datetime
 
 load_dotenv("/root/.env")
 
@@ -19,12 +21,12 @@ remetente = os.getenv("EMAIL_REMETENTE")
 senha = os.getenv("EMAIL_SENHA")
 smtp_host = os.getenv("EMAIL_SMTP_HOST")
 smtp_port = int(os.getenv("EMAIL_SMTP_PORT"))
-destinatarios = os.getenv("EMAIL_DESTINATARIOS").split(",")
+destinatarios = os.getenv("EMAIL_DESTINATARIOS_2").split(",")
 
 limite_uso_hd_principal = int(os.getenv("LIMITE_USO_HD_PRINCIPAL"))
 limite_livre_backup = int(os.getenv("LIMITE_LIVRE_BACKUP_GB")) * (1024 ** 3)
 
-# Logging
+# Logging (compatível com Python 3.6)
 logging.basicConfig(filename='/var/log/alerta.log', level=logging.ERROR)
 
 # Funções
@@ -33,7 +35,7 @@ def verificar_uso_hd(caminho):
         uso_hd = psutil.disk_usage(caminho)
         return uso_hd.percent, uso_hd.total, uso_hd.used, uso_hd.free
     except Exception as e:
-        logging.error(f"Erro ao verificar uso do HD {caminho}: {e}")
+        logging.error("Erro ao verificar uso do HD {}: {}".format(caminho, e))
         return 0, 0, 0, 0
 
 def esta_montado(caminho):
@@ -51,66 +53,214 @@ else:
 # Verifica se precisa enviar o alerta
 if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or tamanho_livre_backup < limite_livre_backup):
 
-    # Corpo do email
+    # Corpo do email atualizado
     corpo = f"""
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alerta Polos - Servidor PACS {unidade}</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            color: #333;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }}
+        .container {{
+            width: 580px;
+            margin: 20px auto;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }}
+        .header {{
+            width: 100%;
+            background: linear-gradient(to right, #04546c, #029687);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }}
+        .logo {{
+            height: 70px;
+            margin-bottom: 15px;
+        }}
+        .content {{
+            padding: 25px;
+        }}
+        .content p {{
+            font-size: 16px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }}
+        .alert-title {{
+            background-color: #7cfcef;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 5px solid #04546c;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 10px 8px;
+            text-align: center;
+        }}
+        th {{
+            background-color: #029687;
+            color: white;
+        }}
+        tr:nth-child(even) {{
+            background-color: #f2f9f9;
+        }}
+        .important {{
+            font-weight: bold;
+            color: #04546c;
+            font-size: 18px;
+        }}
+        .footer {{
+            background: linear-gradient(to right, #04546c, #029687);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }}
+        .footer p {{
+            margin: 5px 0;
+        }}
+        .whatsapp-button {{
+            display: inline-block;
+            background-color: #25D366;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 15px 0;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }}
+        .whatsapp-button:hover {{
+            background-color: #128C7E;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }}
+        .signature {{
+            margin-top: 5px;
+            text-align: center;
+            color: #04ecd4;
+            font-size: 14px;
+        }}
+        .info-box {{
+            background-color: #f2f9f9;
+            border-left: 5px solid #029687;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }}
+
+        /* Responsivo */
+        @media (max-width: 600px) {{
+            .container {{
+                width: 95%;
+                margin: 10px auto;
+            }}
+            .header {{
+                padding: 15px;
+            }}
+            .logo {{
+                height: 50px;
+            }}
+            .content {{
+                padding: 15px;
+            }}
+            .content p {{
+                font-size: 14px;
+            }}
+            .whatsapp-button {{
+                padding: 10px 18px;
+                font-size: 14px;
+            }}
+        }}
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0;">
-    <div style="max-width: 600px; margin: 20px auto; background-color: #fff; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-        
-        <div style="background-image: url('https://i.imgur.com/oGNaMki.jpeg'); background-size: cover; background-position: center; height: 150px; border-radius: 10px 10px 0 0;">
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://i.imgur.com/M4fVy4y.png" alt="Polos Tecnologia" class="logo">
+            <h2 style="margin: 0; font-size: 22px;">⚠️ Alerta de Armazenamento</h2>
+            <p style="margin: 5px 0 0;">Servidor PACS - {unidade}</p>
         </div>
-        
-        <div style="padding: 20px;">
-            <p><strong>Este é um alerta automático do servidor PACS {unidade}</strong></p>
-            <p>Atenção! O uso do HD principal está em <span style="font-weight: bold; color: #d9534f; font-size: 18px;">{uso_principal}%</span> e está acima do limite de {limite_uso_hd_principal}%!</p>
-            
-            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+
+        <div class="content">
+            <div class="alert-title">
+                <p style="margin: 0; font-size: 16px;">
+                    <strong>Este e um alerta automatico do servidor PACS {unidade}</strong>
+                </p>
+            </div>
+
+            <p>Atencao! O uso do HD principal esta em <span class="important">{uso_principal}%</span> e esta acima do limite de {limite_uso_hd_principal}%!</p>
+
+            <table>
                 <thead>
                     <tr>
-                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Disco</th>
-                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Tamanho Total</th>
-                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Espaço Usado</th>
-                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Espaço Livre</th>
-                        <th style="border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">Uso (%)</th>
+                        <th>Disco</th>
+                        <th>Tamanho Total</th>
+                        <th>Espaco Usado</th>
+                        <th>Espaco Livre</th>
+                        <th>Uso (%)</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="border: 1px solid #ddd; padding: 10px;">HD Principal</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_total_principal / (1024 ** 3):.2f} GB</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_usado_principal / (1024 ** 3):.2f} GB</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_livre_principal / (1024 ** 3):.2f} GB</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{uso_principal}%</td>
+                        <td>HD Principal</td>
+                        <td>{tamanho_total_principal / (1024 ** 3):.2f} GB</td>
+                        <td>{tamanho_usado_principal / (1024 ** 3):.2f} GB</td>
+                        <td>{tamanho_livre_principal / (1024 ** 3):.2f} GB</td>
+                        <td>{uso_principal}%</td>
                     </tr>
                     <tr>
-                        <td style="border: 1px solid #ddd; padding: 10px;">HD de Backup</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_total_backup / (1024 ** 3):.2f} GB</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_usado_backup / (1024 ** 3):.2f} GB</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{tamanho_livre_backup / (1024 ** 3):.2f} GB</td>
-                        <td style="border: 1px solid #ddd; padding: 10px;">{uso_backup}%</td>
+                        <td>HD de Backup</td>
+                        <td>{tamanho_total_backup / (1024 ** 3):.2f} GB</td>
+                        <td>{tamanho_usado_backup / (1024 ** 3):.2f} GB</td>
+                        <td>{tamanho_livre_backup / (1024 ** 3):.2f} GB</td>
+                        <td>{uso_backup}%</td>
                     </tr>
                 </tbody>
             </table>
 
-            <p style="font-weight: bold; color: #d9534f; font-size: 16px;">Por favor, entre em contato com a equipe da Polos o mais rápido possível.</p>
-            <p><strong>Recomendamos considerar a expansão do armazenamento com um HD de 6TB.</strong></p>
+            <div class="info-box">
+                <p style="margin: 0; font-size: 16px;">
+                    <strong>⚠️ Situacao do Backup:</strong><br>
+                    {f"O backup possui {tamanho_livre_backup / (1024 ** 3):.2f} GB livres" if caminho_hd_backup else "Backup nao configurado"}
+                    {f", abaixo do limite de seguranca de {limite_livre_backup / (1024 ** 3):.0f} GB" if caminho_hd_backup and tamanho_livre_backup < limite_livre_backup else ""}
+                </p>
+            </div>
+
+            <p class="important">Por favor, entre em contato com a equipe da Polos o mais rapido possivel.</p>
+            <p><strong>Recomendamos considerar a expansao do armazenamento com um HD de 6TB.</strong></p>
         </div>
 
-        <div style="background-color: #f1f1f1; text-align: center; padding: 20px; border-top: 1px solid #ccc; border-radius: 0 0 10px 10px;">
-            <p>Atenciosamente,</p>
-            <p><strong>Suporte Polos</strong></p>
-            <p><a href="https://wa.me/9833024038" target="_blank" style="color: #0275d8; text-decoration: none;">Entre em contato pelo WhatsApp</a></p>
+        <div class="footer">
+            <a href="https://wa.me/559833024038?text=Ola,%20gostaria%20de%20falar%20sobre%20o%20alerta%20do%20HD%20do%20servidor%20PACS%20{unidade}%20que%20esta%20com%20{uso_principal}%25%20de%20uso." class="whatsapp-button" target="_blank">
+                📱 Entrar em contato pelo WhatsApp
+            </a>
+            <p>© {datetime.now().year} Polos Tecnologia - Todos os direitos reservados</p>
+            <div class="signature">
+                Desenvolvido por Celio Nora Junior - Analista de Suporte Tecnico
+            </div>
         </div>
     </div>
 </body>
 </html>
 """
-
 
     msg = MIMEMultipart()
     msg["From"] = remetente
@@ -126,7 +276,8 @@ if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or tamanh
         server.quit()
         print("Email enviado com sucesso!")
     except Exception as e:
-        logging.error(f"Falha ao enviar o email: {e}")
-        print(f"Falha ao enviar o email: {e}")
+        logging.error("Falha ao enviar o email: {}".format(e))
+        print("Falha ao enviar o email: {}".format(e))
 else:
-    print("Condições para envio de alerta não foram atendidas.")
+    print("Condicoes para envio de alerta nao foram atendidas.")
+    print("HD Principal: {}% | Backup livre: {:.2f} GB".format(uso_principal, tamanho_livre_backup / (1024 ** 3)))
