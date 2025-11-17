@@ -146,17 +146,21 @@ crontab -l 2>/dev/null > /tmp/cron_jobs || touch /tmp/cron_jobs
 
 # Adiciona as tarefas ao cron (comentadas)
 echo "# ───── CRONJOBS AUTOMÁTICOS ─────"                                >> /tmp/cron_jobs
-echo "# Alerta: Segunda e sexta às 10h"                                >> /tmp/cron_jobs
+echo "# Alerta: Segunda e sexta as 10h"                                >> /tmp/cron_jobs
 echo "# 0 10 * * 1,5 /usr/bin/python3 /root/alerta.py >> /var/log/alerta.log 2>&1" >> /tmp/cron_jobs
 
-echo "# Verifica HD: Segunda e sexta às 9h"                            >> /tmp/cron_jobs
+echo "# Verifica HD: Segunda e sexta as 9h"                            >> /tmp/cron_jobs
 echo "# 0 9 * * 1,5 /usr/bin/python3 /root/verifica_hd.py >> /var/log/verifica_hd.log 2>&1" >> /tmp/cron_jobs
 
-echo "# Backup: Diariamente à meia-noite"                             >> /tmp/cron_jobs
+echo "# Backup: Diariamente a meia-noite"                             >> /tmp/cron_jobs
 echo "# 0 0 * * * /root/backup.sh >> /var/log/backup.log 2>&1"        >> /tmp/cron_jobs
 
-echo "# Monitoramento: Executa após reboot do sistema"               >> /tmp/cron_jobs
+echo "# Monitoramento: Executa apos reboot do sistema"               >> /tmp/cron_jobs
 echo "# @reboot /usr/bin/python3 /root/monitorar.py >> /var/log/monitorar.log 2>&1" >> /tmp/cron_jobs
+
+echo "# banco de dados pacs" >> /tmp/cron_jobs
+echo "# 0 2 * * 1 /bin/bash /root/backup_pacsdb.sh >> /var/log/backup_pacsdb.log 2>&1" >> /tmp/cron_jobs
+
 
 # Restaura o crontab do root com as entradas comentadas
 crontab /tmp/cron_jobs && rm /tmp/cron_jobs
