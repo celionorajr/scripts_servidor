@@ -24,7 +24,7 @@ smtp_port = int(os.getenv("EMAIL_SMTP_PORT"))
 destinatarios = os.getenv("EMAIL_DESTINATARIOS_2").split(",")
 
 limite_uso_hd_principal = int(os.getenv("LIMITE_USO_HD_PRINCIPAL"))
-limite_livre_backup = int(os.getenv("LIMITE_LIVRE_BACKUP_GB")) * (1024 ** 3)
+limite_uso_hd_backup = int(os.getenv("LIMITE_USO_HD_BACKUP"))
 
 # Logging (compatível com Python 3.6)
 logging.basicConfig(filename='/var/log/alerta.log', level=logging.ERROR)
@@ -51,7 +51,7 @@ else:
     uso_backup = tamanho_total_backup = tamanho_usado_backup = tamanho_livre_backup = 0
 
 # Verifica se precisa enviar o alerta
-if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or tamanho_livre_backup < limite_livre_backup):
+if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or uso_backup >= limite_uso_hd_backup):
 
     # Corpo do email atualizado
     corpo = f"""
@@ -202,19 +202,19 @@ if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or tamanh
         <div class="content">
             <div class="alert-title">
                 <p style="margin: 0; font-size: 16px;">
-                    <strong>Este e um alerta automatico do servidor PACS {unidade}</strong>
+                    <strong>Este é um alerta automático do servidor PACS {unidade}</strong>
                 </p>
             </div>
 
-            <p>Atencao! O uso do HD principal esta em <span class="important">{uso_principal}%</span> e esta acima do limite de {limite_uso_hd_principal}%!</p>
+            <p>Atenção! O uso do HD principal está em <span class="important">{uso_principal}%</span> e está acima do limite de {limite_uso_hd_principal}%!</p>
 
             <table>
                 <thead>
                     <tr>
                         <th>Disco</th>
                         <th>Tamanho Total</th>
-                        <th>Espaco Usado</th>
-                        <th>Espaco Livre</th>
+                        <th>Espaço Usado</th>
+                        <th>Espaço Livre</th>
                         <th>Uso (%)</th>
                     </tr>
                 </thead>
@@ -238,23 +238,23 @@ if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or tamanh
 
             <div class="info-box">
                 <p style="margin: 0; font-size: 16px;">
-                    <strong>⚠️ Situacao do Backup:</strong><br>
-                    {f"O backup possui {tamanho_livre_backup / (1024 ** 3):.2f} GB livres" if caminho_hd_backup else "Backup nao configurado"}
-                    {f", abaixo do limite de seguranca de {limite_livre_backup / (1024 ** 3):.0f} GB" if caminho_hd_backup and tamanho_livre_backup < limite_livre_backup else ""}
+                    <strong>⚠️ Situação do Backup:</strong><br>
+                    {f"O backup está com {uso_backup}% de uso" if caminho_hd_backup else "Backup não configurado"}
+                    {f", acima do limite de segurança de {limite_uso_hd_backup}%" if caminho_hd_backup and uso_backup >= limite_uso_hd_backup else ""}
                 </p>
             </div>
 
-            <p class="important">Por favor, entre em contato com a equipe da Polos o mais rapido possivel.</p>
-            <p><strong>Recomendamos considerar a expansao do armazenamento com um HD de 6TB.</strong></p>
+            <p class="important">Por favor, entre em contato com a equipe da Polos o mais rápido possível.</p>
+            <p><strong>Recomendamos considerar a expansão do armazenamento com um HD de 6TB.</strong></p>
         </div>
 
         <div class="footer">
-            <a href="https://wa.me/559833024038?text=Ola,%20gostaria%20de%20falar%20sobre%20o%20alerta%20do%20HD%20do%20servidor%20PACS%20{unidade}%20que%20esta%20com%20{uso_principal}%25%20de%20uso." class="whatsapp-button" target="_blank">
+            <a href="https://wa.me/559833024038?text=Olá,%20gostaria%20de%20falar%20sobre%20o%20alerta%20do%20HD%20do%20servidor%20PACS%20{unidade}%20que%20está%20com%20{uso_principal}%25%20de%20uso." class="whatsapp-button" target="_blank">
                 📱 Entrar em contato pelo WhatsApp
             </a>
             <p>© {datetime.now().year} Polos Tecnologia - Todos os direitos reservados</p>
             <div class="signature">
-                Desenvolvido por Celio Nora Junior - Analista de Suporte Tecnico
+                Desenvolvido por Celio Nora Junior - Analista de Suporte Técnico
             </div>
         </div>
     </div>
@@ -279,5 +279,5 @@ if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or tamanh
         logging.error("Falha ao enviar o email: {}".format(e))
         print("Falha ao enviar o email: {}".format(e))
 else:
-    print("Condicoes para envio de alerta nao foram atendidas.")
-    print("HD Principal: {}% | Backup livre: {:.2f} GB".format(uso_principal, tamanho_livre_backup / (1024 ** 3)))
+    print("Condições para envio de alerta não foram atendidas.")
+    print("HD Principal: {}% | Backup: {}%".format(uso_principal, uso_backup))

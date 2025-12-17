@@ -16,7 +16,8 @@ destinatarios = os.getenv("EMAIL_DESTINATARIOS").split(",")
 smtp_server = os.getenv("EMAIL_SMTP_HOST")
 smtp_port = int(os.getenv("EMAIL_SMTP_PORT"))
 UNIT_NAME = os.getenv("UNIDADE")
-THRESHOLD = int(os.getenv("LIMITE_USO_HD_PRINCIPAL"))
+THRESHOLD_PRINCIPAL = int(os.getenv("LIMITE_USO_HD_PRINCIPAL"))
+THRESHOLD_BACKUP = int(os.getenv("LIMITE_USO_HD_BACKUP"))
 DIR_PRODUCAO = os.getenv("HD_PRINCIPAL")
 DIR_BACKUP = os.getenv("HD_BACKUP")
 
@@ -160,25 +161,25 @@ def send_email(subject):
         <div class="content">
             <div class="alert-title">
                 <p style="margin: 0; font-size: 16px;">
-                    Aviso: Hora de gerenciar o espaco dos HDs do servidor
+                    Aviso: Hora de gerenciar o espaço dos HDs do servidor
                 </p>
             </div>
 
-            <p class="important">O uso do HD de producao atingiu {prod_usage}%, acima do limite de {THRESHOLD}%.</p>
+            <p class="important">O uso do HD de produção atingiu {prod_usage}%, acima do limite de {THRESHOLD_PRINCIPAL}%.</p>
 
             <table>
                 <thead>
                     <tr>
                         <th>Disco</th>
                         <th>Tamanho Total</th>
-                        <th>Espaco Usado</th>
-                        <th>Espaco Livre</th>
+                        <th>Espaço Usado</th>
+                        <th>Espaço Livre</th>
                         <th>Uso (%)</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>HD Producao</td>
+                        <td>HD Produção</td>
                         <td>{prod_total / (1024 ** 3):.2f} GB</td>
                         <td>{prod_used / (1024 ** 3):.2f} GB</td>
                         <td>{prod_free / (1024 ** 3):.2f} GB</td>
@@ -196,20 +197,20 @@ def send_email(subject):
 
             <div class="info-box">
                 <p style="margin: 0; font-size: 16px;">
-                    <strong>📋 Acao Requerida:</strong><br>
-                    A equipe de TI deve realizar a gestao do espaco em disco para evitar interrupcoes no servidor.
+                    <strong>📋 Ação Requerida:</strong><br>
+                    A equipe de TI deve realizar a gestão do espaço em disco para evitar interrupções no servidor.
                 </p>
             </div>
 
             <p style="font-size: 15px; color: #555;">
-                Este e um aviso automatico para gestao proativa do armazenamento.
+                Este é um aviso automático para gestão proativa do armazenamento.
             </p>
         </div>
 
         <div class="footer">
-            <p style="margin: 5px 0;">Desenvolvido por Celio Nora Junior - Analista de Suporte Tecnico</p>
+            <p style="margin: 5px 0;">Desenvolvido por Celio Nora Junior - Analista de Suporte Técnico</p>
             <div class="signature">
-                Sistema de monitoramento automatico
+                Sistema de monitoramento automático
             </div>
             <p style="margin: 10px 0 0; font-size: 12px;">© {current_year} Polos Tecnologia</p>
         </div>
@@ -232,13 +233,13 @@ def send_email(subject):
 
 # Verifica se precisa enviar o aviso
 # APENAS se existir backup configurado E produção >= threshold E backup < threshold
-if DIR_BACKUP and esta_montado(DIR_BACKUP) and prod_usage >= THRESHOLD and backup_usage < THRESHOLD:
-    subject = f"Aviso: Gestao de HD Requerida - {UNIT_NAME}"
+if DIR_BACKUP and esta_montado(DIR_BACKUP) and prod_usage >= THRESHOLD_PRINCIPAL and backup_usage < THRESHOLD_BACKUP:
+    subject = f"Aviso: Gestão de HD Requerida - {UNIT_NAME}"
     send_email(subject)
 else:
     if not DIR_BACKUP:
-        print("Backup nao configurado. Nenhum aviso sera enviado.")
+        print("Backup não configurado. Nenhum aviso será enviado.")
     elif not esta_montado(DIR_BACKUP):
-        print("Backup configurado mas nao esta montado. Nenhum aviso sera enviado.")
+        print("Backup configurado mas não está montado. Nenhum aviso será enviado.")
     else:
-        print("Uso dos HDs dentro dos limites. Producao: {}% | Backup: {}%".format(prod_usage, backup_usage))
+        print("Uso dos HDs dentro dos limites. Produção: {}% | Backup: {}%".format(prod_usage, backup_usage))

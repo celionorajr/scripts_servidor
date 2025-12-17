@@ -118,10 +118,11 @@ EMAIL_SENHA=*S1spolos#
 EMAIL_SMTP_HOST=smtp.hostinger.com
 EMAIL_SMTP_PORT=587
 EMAIL_DESTINATARIOS=suporte@polos.tec.br,cnoraj@gmail.com
+EMAIL_DESTINATARIOS_2=suporte@polos.tec.br,cnoraj@gmail.com
 
 # === Limites para alerta ===
 LIMITE_USO_HD_PRINCIPAL=80
-LIMITE_LIVRE_BACKUP_GB=400
+LIMITE_USO_HD_BACKUP=80
 
 # === Controle do monitoramento ===
 CONTROLE_ARQUIVO=/root/ultimo_envio.txt
