@@ -111,7 +111,8 @@ def load_settings():
 
 def is_mounted(path):
     try:
-        return any(part.mountpoint == path for part in psutil.disk_partitions(all=True))
+        expected_path = os.path.normpath(path)
+        return any(os.path.normpath(part.mountpoint) == expected_path for part in psutil.disk_partitions(all=True))
     except Exception as error:
         raise StorageError("Não foi possível verificar a montagem de {}: {}".format(path, error))
 
