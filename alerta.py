@@ -3,6 +3,7 @@
 """Envia alerta crítico quando o armazenamento do PACS exige atenção imediata."""
 
 import logging
+import json
 import os
 import smtplib
 import ssl
@@ -48,6 +49,7 @@ class Settings(object):
         recipients,
         principal_limit,
         backup_limit,
+        backup_status_file,
     ):
         self.unit_name = unit_name
         self.principal_path = principal_path
@@ -59,6 +61,7 @@ class Settings(object):
         self.recipients = recipients
         self.principal_limit = principal_limit
         self.backup_limit = backup_limit
+        self.backup_status_file = backup_status_file
 
 
 def configure_logging():
@@ -111,6 +114,7 @@ def load_settings():
         recipients=recipients,
         principal_limit=read_limit("LIMITE_USO_HD_PRINCIPAL"),
         backup_limit=read_limit("LIMITE_USO_HD_BACKUP"),
+        backup_status_file=(os.getenv("BACKUP_STATUS_FILE") or "/root/ultimo_backup_sucesso.json").strip(),
     )
 
 
@@ -135,7 +139,27 @@ def format_size(value):
     return "{:.2f} GB".format(value / float(1024 ** 3))
 
 
-def build_email_html(settings, principal, backup_state, backup_usage, reason):
+def get_last_backup_status(path):
+    if not os.path.exists(path):
+        return "missing", None
+    try:
+        with open(path, "r") as status_file:
+            status = json.load(status_file)
+    except (IOError, OSError, ValueError) as error:
+        logging.error("Não foi possível ler o status do último backup: %s", error)
+        return "invalid", None
+
+    if not isinstance(status, dict):
+        logging.error("Status do último backup inválido em %s", path)
+        return "invalid", None
+    completed_at = status.get("completed_at")
+    if status.get("status") != "success" or not completed_at:
+        logging.error("Status do último backup inválido em %s", path)
+        return "invalid", None
+    return "success", completed_at
+
+
+def build_email_html(settings, principal, backup_state, backup_usage, reason, last_backup_status):
     if backup_state == "not_configured":
         backup_message = "HD de backup não configurado."
         backup_details = "Não há armazenamento de backup definido no arquivo de configuração."
@@ -149,6 +173,14 @@ def build_email_html(settings, principal, backup_state, backup_usage, reason):
         backup_message = "HD de backup acima do limite configurado ({}%).".format(settings.backup_limit)
         backup_details = "O backup também atingiu o limite de segurança."
 
+    status_kind, completed_at = last_backup_status
+    if status_kind == "success":
+        backup_status_card = """<div style="border-left:4px solid #029687;background:#f0fdfa;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong style="color:#04546c;">Status do último backup automático</strong><br>Último backup concluído com sucesso em <strong>{}</strong>.</div>""".format(completed_at)
+    elif status_kind == "missing":
+        backup_status_card = """<div style="border-left:4px solid #d99a00;background:#fff8e7;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong style="color:#8a5a00;">Status do último backup automático</strong><br>Não há registro de backup automático concluído com sucesso.</div>"""
+    else:
+        backup_status_card = """<div style="border-left:4px solid #d99a00;background:#fff8e7;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong style="color:#8a5a00;">Status do último backup automático</strong><br>Não foi possível consultar o registro do último backup.</div>"""
+
     return """<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f3f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
@@ -159,11 +191,12 @@ def build_email_html(settings, principal, backup_state, backup_usage, reason):
         <div style="border-left:4px solid #b42318;background:#fef3f2;padding:16px;margin-bottom:22px;"><div style="font-size:18px;line-height:25px;font-weight:bold;color:#8a1c16;">Ação imediata necessária</div><div style="font-size:15px;line-height:22px;margin-top:6px;">{reason}</div></div>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dbe4ea;border-radius:8px;margin-bottom:20px;"><tr><td style="padding:16px;background:#f8fafc;font-size:16px;font-weight:bold;color:#17324d;">HD principal</td></tr><tr><td style="padding:16px;"><div style="font-size:34px;line-height:38px;font-weight:bold;color:#b42318;">{percent}% usado</div><div style="font-size:14px;color:#5b6773;margin-top:5px;">Limite configurado: {limit}%</div><div style="font-size:15px;line-height:24px;margin-top:14px;">Total: <strong>{total}</strong><br>Utilizado: <strong>{used}</strong><br>Livre: <strong>{free}</strong></div></td></tr></table>
         <div style="font-size:16px;font-weight:bold;color:#17324d;margin:0 0 10px;">Situação do backup</div><div style="border-left:4px solid #b42318;background:#fff8f7;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong>{backup_message}</strong><br>{backup_details}</div>
+        {backup_status_card}
         <p style="font-size:15px;line-height:22px;margin:22px 0 0;">Verifique o armazenamento e contate a equipe responsável para evitar indisponibilidade do PACS.</p>
       </td></tr><tr><td style="padding:18px 24px;background:#17324d;color:#dbeafe;font-size:12px;line-height:18px;">Mensagem automática do monitoramento do servidor PACS · © {year} Polos Tecnologia</td></tr>
     </table>
   </td></tr></table>
-</body></html>""".format(unit=settings.unit_name, reason=reason, percent=principal.percent, limit=settings.principal_limit, total=format_size(principal.total), used=format_size(principal.used), free=format_size(principal.free), backup_message=backup_message, backup_details=backup_details, year=datetime.now().year)
+</body></html>""".format(unit=settings.unit_name, reason=reason, percent=principal.percent, limit=settings.principal_limit, total=format_size(principal.total), used=format_size(principal.used), free=format_size(principal.free), backup_message=backup_message, backup_details=backup_details, backup_status_card=backup_status_card, year=datetime.now().year)
 
 
 def send_email(settings, html):
@@ -225,7 +258,8 @@ def main():
                     backup_state = "full"
                     reason = "O HD principal e o HD de backup atingiram os limites configurados."
     try:
-        send_email(settings, build_email_html(settings, principal, backup_state, backup_usage, reason))
+        last_backup_status = get_last_backup_status(settings.backup_status_file)
+        send_email(settings, build_email_html(settings, principal, backup_state, backup_usage, reason, last_backup_status))
     except Exception as error:
         logging.exception("Falha ao enviar alerta crítico: %s", error)
         print("Falha ao enviar alerta crítico: {}".format(error), file=sys.stderr)

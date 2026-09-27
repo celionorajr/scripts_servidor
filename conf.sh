@@ -134,11 +134,13 @@ TEMPO_MINIMO_ENVIO=300
 # === Controle do backup de imagens ===
 BACKUP_LOG_DIR=/home/polos/backup_logs
 BACKUP_LOCK_FILE=/tmp/backup_pacs.lock
+BACKUP_STATUS_FILE=/root/ultimo_backup_sucesso.json
 
 # === Backup do banco PACS ===
 PACSDB_NAME=pacsdb
 PACSDB_LOCAL_DIR=/tmp
-PACSDB_BACKUP_MOUNT=/mnt/storage40T
+# Configure o ponto de montagem específico de cada unidade.
+PACSDB_BACKUP_MOUNT=
 PACSDB_BACKUP_SUBDIR=bkp_pacsdb
 PACSDB_RETENTION_DAYS=7
 

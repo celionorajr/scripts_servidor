@@ -24,6 +24,7 @@ HD_PRINCIPAL=$(read_env_value "HD_PRINCIPAL")
 HD_BACKUP=$(read_env_value "HD_BACKUP")
 BACKUP_LOG_DIR=$(read_env_value "BACKUP_LOG_DIR")
 BACKUP_LOCK_FILE=$(read_env_value "BACKUP_LOCK_FILE")
+BACKUP_STATUS_FILE=$(read_env_value "BACKUP_STATUS_FILE")
 
 if [ -z "${HD_PRINCIPAL:-}" ] || [ -z "${HD_BACKUP:-}" ]; then
     echo "HD_PRINCIPAL e HD_BACKUP devem estar configurados em $ENV_FILE" >&2
@@ -39,6 +40,7 @@ DIR_DESTINO="$HD_BACKUP/$ANO"
 LOG_DIR="${BACKUP_LOG_DIR:-/home/polos/backup_logs}"
 LOG_FILE="$LOG_DIR/rsync_backup_${ANO}-${MES}.log"
 LOCK_FILE="${BACKUP_LOCK_FILE:-/tmp/backup_pacs.lock}"
+STATUS_FILE="${BACKUP_STATUS_FILE:-/root/ultimo_backup_sucesso.json}"
 
 mkdir -p "$LOG_DIR" || {
     echo "Não foi possível criar o diretório de logs: $LOG_DIR" >&2
@@ -79,6 +81,13 @@ if [ ! -d "$DIR_DESTINO" ]; then
 fi
 
 if rsync -havPuz --partial "$DIR_ORIGEM" "$DIR_DESTINO" >> "$LOG_FILE" 2>&1; then
+    STATUS_DIR=$(dirname "$STATUS_FILE")
+    STATUS_TEMP_FILE="${STATUS_FILE}.tmp.$$"
+    if ! mkdir -p "$STATUS_DIR" || ! (umask 077; printf '{\n  "status": "success",\n  "completed_at": "%s"\n}\n' "$(date '+%d/%m/%Y às %H:%M')" > "$STATUS_TEMP_FILE" && mv "$STATUS_TEMP_FILE" "$STATUS_FILE"); then
+        rm -f "$STATUS_TEMP_FILE"
+        echo "Backup concluído, mas não foi possível atualizar o status: $STATUS_FILE" >> "$LOG_FILE"
+        exit 1
+    fi
     echo "Backup concluído com sucesso: $(date)" >> "$LOG_FILE"
 else
     echo "Erro no backup: $(date)" >> "$LOG_FILE"

@@ -19,14 +19,16 @@ read_env_value() {
     printf '%s' "$value"
 }
 
-# Valores padrão preservam o comportamento anterior quando as variáveis ainda
-# não foram adicionadas ao .env.
+# Configurações específicas do banco.
 DB_NAME="$(read_env_value "PACSDB_NAME")"
 DB_NAME="${DB_NAME:-pacsdb}"
 LOCAL_DIR="$(read_env_value "PACSDB_LOCAL_DIR")"
 LOCAL_DIR="${LOCAL_DIR:-/tmp}"
 REMOTE_MOUNT="$(read_env_value "PACSDB_BACKUP_MOUNT")"
-REMOTE_MOUNT="${REMOTE_MOUNT:-/mnt/storage40T}"
+if [ -z "$REMOTE_MOUNT" ]; then
+    echo "[ERRO] PACSDB_BACKUP_MOUNT deve ser configurado em ${ENV_FILE}"
+    exit 1
+fi
 REMOTE_SUBDIR="$(read_env_value "PACSDB_BACKUP_SUBDIR")"
 REMOTE_SUBDIR="${REMOTE_SUBDIR:-bkp_pacsdb}"
 REMOTE_DIR="${REMOTE_MOUNT}/${REMOTE_SUBDIR}"
@@ -39,7 +41,7 @@ REMOTE_ARQ="${REMOTE_DIR}/${ARQUIVO}"
 
 # ==== CONFIGURAÇÃO DE PERMISSÕES E AMBIENTE ====
 # Mudar para diretório com permissões adequadas
-cd /tmp
+cd "$LOCAL_DIR"
 
 # ==== VERIFICAÇÕES INICIAIS ====
 echo "[INFO] Iniciando backup do banco ${DB_NAME} em $(date)..."
