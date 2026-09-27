@@ -108,7 +108,7 @@ if [ ! -f "$ENV_FILE" ]; then
 
     cat <<EOF > "$ENV_FILE"
 # === Identificação da Unidade ===
-UNIDADE=Hospital ABC
+UNIDADE="Hospital ABC"
 
 # === Caminhos dos HDs ===
 HD_PRINCIPAL=/mnt/storage0

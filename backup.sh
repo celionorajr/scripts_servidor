@@ -8,9 +8,22 @@ if [ ! -r "$ENV_FILE" ]; then
     exit 1
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
+read_env_value() {
+    local key="$1"
+    local value
+    value=$(sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n 1)
+    value=${value%$'\r'}
+    case "$value" in
+        \"*\") value=${value#\"}; value=${value%\"} ;;
+        \'*\') value=${value#\'}; value=${value%\'} ;;
+    esac
+    printf '%s' "$value"
+}
+
+HD_PRINCIPAL=$(read_env_value "HD_PRINCIPAL")
+HD_BACKUP=$(read_env_value "HD_BACKUP")
+BACKUP_LOG_DIR=$(read_env_value "BACKUP_LOG_DIR")
+BACKUP_LOCK_FILE=$(read_env_value "BACKUP_LOCK_FILE")
 
 if [ -z "${HD_PRINCIPAL:-}" ] || [ -z "${HD_BACKUP:-}" ]; then
     echo "HD_PRINCIPAL e HD_BACKUP devem estar configurados em $ENV_FILE" >&2

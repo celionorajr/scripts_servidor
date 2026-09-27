@@ -7,18 +7,31 @@ if [ ! -r "$ENV_FILE" ]; then
     exit 1
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
+read_env_value() {
+    local key="$1"
+    local value
+    value=$(sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n 1)
+    value=${value%$'\r'}
+    case "$value" in
+        \"*\") value=${value#\"}; value=${value%\"} ;;
+        \'*\') value=${value#\'}; value=${value%\'} ;;
+    esac
+    printf '%s' "$value"
+}
 
 # Valores padrão preservam o comportamento anterior quando as variáveis ainda
 # não foram adicionadas ao .env.
-DB_NAME="${PACSDB_NAME:-pacsdb}"
-LOCAL_DIR="${PACSDB_LOCAL_DIR:-/tmp}"
-REMOTE_MOUNT="${PACSDB_BACKUP_MOUNT:-/mnt/storage40T}"
-REMOTE_SUBDIR="${PACSDB_BACKUP_SUBDIR:-bkp_pacsdb}"
+DB_NAME="$(read_env_value "PACSDB_NAME")"
+DB_NAME="${DB_NAME:-pacsdb}"
+LOCAL_DIR="$(read_env_value "PACSDB_LOCAL_DIR")"
+LOCAL_DIR="${LOCAL_DIR:-/tmp}"
+REMOTE_MOUNT="$(read_env_value "PACSDB_BACKUP_MOUNT")"
+REMOTE_MOUNT="${REMOTE_MOUNT:-/mnt/storage40T}"
+REMOTE_SUBDIR="$(read_env_value "PACSDB_BACKUP_SUBDIR")"
+REMOTE_SUBDIR="${REMOTE_SUBDIR:-bkp_pacsdb}"
 REMOTE_DIR="${REMOTE_MOUNT}/${REMOTE_SUBDIR}"
-RETENTION_DAYS="${PACSDB_RETENTION_DAYS:-7}"
+RETENTION_DAYS="$(read_env_value "PACSDB_RETENTION_DAYS")"
+RETENTION_DAYS="${RETENTION_DAYS:-7}"
 DATA=$(date +%Y%m%d_%H%M)
 ARQUIVO="pacsdb_${DATA}.sql.gz"
 LOCAL_ARQ="${LOCAL_DIR}/${ARQUIVO}"
