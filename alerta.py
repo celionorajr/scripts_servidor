@@ -7,7 +7,6 @@ import os
 import smtplib
 import ssl
 import sys
-from dataclasses import dataclass
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -28,26 +27,38 @@ class StorageError(Exception):
     """Indica que não foi possível consultar um armazenamento."""
 
 
-@dataclass
-class DiskUsage:
-    percent: float
-    total: int
-    used: int
-    free: int
+class DiskUsage(object):
+    def __init__(self, percent, total, used, free):
+        self.percent = percent
+        self.total = total
+        self.used = used
+        self.free = free
 
 
-@dataclass
-class Settings:
-    unit_name: str
-    principal_path: str
-    backup_path: str
-    sender: str
-    password: str
-    smtp_host: str
-    smtp_port: int
-    recipients: list
-    principal_limit: int
-    backup_limit: int
+class Settings(object):
+    def __init__(
+        self,
+        unit_name,
+        principal_path,
+        backup_path,
+        sender,
+        password,
+        smtp_host,
+        smtp_port,
+        recipients,
+        principal_limit,
+        backup_limit,
+    ):
+        self.unit_name = unit_name
+        self.principal_path = principal_path
+        self.backup_path = backup_path
+        self.sender = sender
+        self.password = password
+        self.smtp_host = smtp_host
+        self.smtp_port = smtp_port
+        self.recipients = recipients
+        self.principal_limit = principal_limit
+        self.backup_limit = backup_limit
 
 
 def configure_logging():
