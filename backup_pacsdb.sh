@@ -1,11 +1,24 @@
 #!/bin/bash
 
 # ==== CONFIGURAÇÕES ====
-DB_NAME="pacsdb"
-LOCAL_DIR="/tmp"
-REMOTE_MOUNT="/mnt/storage40T"  # Ponto de montagem
-REMOTE_DIR="${REMOTE_MOUNT}/bkp_pacsdb"  # Pasta dentro do mount
-RETENTION_DAYS=7
+ENV_FILE="${ENV_FILE:-/root/.env}"
+if [ ! -r "$ENV_FILE" ]; then
+    echo "[ERRO] Arquivo de configuração não encontrado ou sem leitura: ${ENV_FILE}"
+    exit 1
+fi
+
+set -a
+source "$ENV_FILE"
+set +a
+
+# Valores padrão preservam o comportamento anterior quando as variáveis ainda
+# não foram adicionadas ao .env.
+DB_NAME="${PACSDB_NAME:-pacsdb}"
+LOCAL_DIR="${PACSDB_LOCAL_DIR:-/tmp}"
+REMOTE_MOUNT="${PACSDB_BACKUP_MOUNT:-/mnt/storage40T}"
+REMOTE_SUBDIR="${PACSDB_BACKUP_SUBDIR:-bkp_pacsdb}"
+REMOTE_DIR="${REMOTE_MOUNT}/${REMOTE_SUBDIR}"
+RETENTION_DAYS="${PACSDB_RETENTION_DAYS:-7}"
 DATA=$(date +%Y%m%d_%H%M)
 ARQUIVO="pacsdb_${DATA}.sql.gz"
 LOCAL_ARQ="${LOCAL_DIR}/${ARQUIVO}"

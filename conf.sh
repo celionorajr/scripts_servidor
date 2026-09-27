@@ -12,6 +12,8 @@ TIMEZONE="America/Sao_Paulo"
 SSH_PORT=2070
 PACKAGES=("bridge-utils" "ifenslave" "net-tools" "python3-pip")
 PYTHON_PIP_PACKAGES=("psutil" "matplotlib")
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_TO_INSTALL=("alerta.py" "verifica_hd.py" "monitorar.py" "backup.sh" "backup_pacsdb.sh")
 
 # ------- CORES E EMOJIS ---------
 RED="\e[31m"
@@ -129,6 +131,17 @@ CONTROLE_ARQUIVO=/root/ultimo_envio.txt
 LOCK_FILE=/tmp/monitor_lock
 TEMPO_MINIMO_ENVIO=300
 
+# === Controle do backup de imagens ===
+BACKUP_LOG_DIR=/home/polos/backup_logs
+BACKUP_LOCK_FILE=/tmp/backup_pacs.lock
+
+# === Backup do banco PACS ===
+PACSDB_NAME=pacsdb
+PACSDB_LOCAL_DIR=/tmp
+PACSDB_BACKUP_MOUNT=/mnt/storage40T
+PACSDB_BACKUP_SUBDIR=bkp_pacsdb
+PACSDB_RETENTION_DAYS=7
+
 EOF
 
     msg_success "Arquivo .env criado com valores padrão."
@@ -137,6 +150,17 @@ else
 fi
 
 msg_info "⚙️  Você pode editar o arquivo /root/.env para ajustar os dados da unidade."
+
+# === INSTALAR SCRIPTS OPERACIONAIS EM /root ===
+msg_info "Copiando scripts operacionais para /root..."
+for script in "${SCRIPTS_TO_INSTALL[@]}"; do
+    if [ ! -f "$SCRIPT_DIR/$script" ]; then
+        echo "Arquivo não encontrado para instalação: $SCRIPT_DIR/$script" >&2
+        exit 1
+    fi
+    sudo install -m 700 "$SCRIPT_DIR/$script" "/root/$script"
+done
+msg_success "Scripts instalados em /root. O clone original foi preservado para futuras atualizações."
 
 ### CRIAÇÃO DOS CRONJOBS NO CRON DO ROOT
 

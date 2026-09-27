@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 import fcntl
 import ssl
 
+
 load_dotenv("/root/.env")
 
 EMAIL_HOST = os.getenv("EMAIL_SMTP_HOST")
@@ -21,182 +22,35 @@ CONTROLE_ARQUIVO = os.getenv("CONTROLE_ARQUIVO")
 TEMPO_MINIMO_ENVIO = int(os.getenv("TEMPO_MINIMO_ENVIO"))
 LOCK_FILE = os.getenv("LOCK_FILE")
 
+
 def enviar_email_reinicio():
-    msg = MIMEMultipart()
-    msg['Subject'] = f'⚠️ Alerta: Servidor Reiniciado - {UNIDADE}'
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = f'Aviso: Servidor Reiniciado - {UNIDADE}'
     msg['From'] = EMAIL_USER
     msg['To'] = ', '.join(DESTINATARIOS)
-    
+
     current_year = datetime.now().year
     data_hora = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
-    
-    html = f"""
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alerta de Reinicialização - {UNIDADE}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
-            margin: 0;
-            padding: 0;
-            color: #333;
-        }}
-        .container {{
-            max-width: 600px;
-            margin: 20px auto;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-        }}
-        .header {{
-            background: linear-gradient(to right, #04546c, #029687);
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }}
-        .logo {{
-            height: 70px;
-            margin-bottom: 15px;
-        }}
-        .content {{
-            padding: 25px;
-        }}
-        .alert-title {{
-            background-color: #ffebee;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            border-left: 5px solid #d32f2f;
-        }}
-        .info-box {{
-            background-color: #f2f9f9;
-            border-left: 5px solid #029687;
-            padding: 15px 20px;
-            margin: 20px 0;
-            border-radius: 6px;
-        }}
-        .warning-box {{
-            background-color: #fff3cd;
-            border-left: 5px solid #ffc107;
-            padding: 15px 20px;
-            margin: 20px 0;
-            border-radius: 6px;
-        }}
-        .footer {{
-            background: linear-gradient(to right, #04546c, #029687);
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }}
-        .signature {{
-            margin-top: 5px;
-            text-align: center;
-            color: #04ecd4;
-            font-size: 14px;
-        }}
-        .important {{
-            font-weight: bold;
-            color: #d32f2f;
-            font-size: 18px;
-        }}
-        .time-display {{
-            font-size: 20px;
-            color: #04546c;
-            font-weight: bold;
-            text-align: center;
-            padding: 10px;
-            background-color: #f0f8ff;
-            border-radius: 6px;
-            margin: 15px 0;
-        }}
 
-        /* Responsivo */
-        @media (max-width: 600px) {{
-            .container {{
-                width: 95%;
-                margin: 10px auto;
-            }}
-            .header {{
-                padding: 15px;
-            }}
-            .logo {{
-                height: 50px;
-            }}
-            .content {{
-                padding: 15px;
-            }}
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <img src="https://i.imgur.com/M4fVy4y.png" alt="Polos Tecnologia" class="logo">
-            <h2 style="margin: 0; font-size: 22px;">⚠️ Alerta de Reinicialização</h2>
-            <p style="margin: 5px 0 0;">Servidor PACS - {UNIDADE}</p>
-        </div>
-
-        <div class="content">
-            <div class="alert-title">
-                <p style="margin: 0; font-size: 16px;">
-                    <strong>AVISO AUTOMÁTICO:</strong> O servidor foi reiniciado
-                </p>
-            </div>
-
-            <p class="important">Atenção! O servidor PACS da unidade {UNIDADE} foi reiniciado.</p>
-
-            <div class="info-box">
-                <p style="margin: 0; font-size: 16px;">
-                    <strong>📅 Data e Hora do Reinício:</strong>
-                </p>
-                <div class="time-display">
-                    {data_hora}
-                </div>
-            </div>
-
-            <div class="warning-box">
-                <p style="margin: 0; font-size: 16px;">
-                    <strong>🔧 Ação Recomendada:</strong><br>
-                    Verifique se todos os serviços essenciais foram iniciados corretamente após o reboot.
-                    Confirme a operação normal do sistema PACS e seus componentes.
-                </p>
-            </div>
-
-            <div class="info-box">
-                <p style="margin: 0; font-size: 16px;">
-                    <strong>📋 Checklist Recomendado:</strong><br>
-                    • Serviço PACS em execução<br>
-                    • Banco de dados operacional<br>
-                    • Conexões de rede estabelecidas<br>
-                    • Storage montado e acessível<br>
-                    • Aplicações auxiliares funcionando
-                </p>
-            </div>
-
-            <p style="font-size: 15px; color: #555;">
-                Este é um alerta automático do sistema de monitoramento.
-                Se o reinício não foi planejado, investigue as causas.
-            </p>
-        </div>
-
-        <div class="footer">
-            <p style="margin: 5px 0;">Desenvolvido por Celio Nora Junior - Analista de Suporte Técnico</p>
-            <div class="signature">
-                Sistema de monitoramento automático
-            </div>
-            <p style="margin: 10px 0 0; font-size: 12px;">© {current_year} Polos Tecnologia</p>
-        </div>
-    </div>
-</body>
-</html>
-"""
-    msg.attach(MIMEText(html, 'html'))
+    html = f"""<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f6f8;"><tr><td align="center" style="padding:20px 12px;">
+    <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #dbe4ea;border-radius:12px;overflow:hidden;">
+      <tr><td align="center" style="padding:18px 16px;background:#04546c;color:#ffffff;"><img src="https://i.imgur.com/M4fVy4y.png" alt="Polos Tecnologia" width="80" style="display:block;width:80px;max-width:100%;height:auto;border:0;margin:0 auto 10px;"><div style="font-size:11px;letter-spacing:0.7px;text-transform:uppercase;font-weight:bold;">Monitoramento do servidor</div><div style="font-size:20px;line-height:25px;font-weight:bold;margin-top:5px;">Servidor PACS — {UNIDADE}</div></td></tr>
+      <tr><td style="padding:24px;">
+        <div style="border-left:4px solid #029687;background:#f0fdfa;padding:16px;margin-bottom:20px;"><div style="font-size:18px;line-height:25px;font-weight:bold;color:#04546c;">Aviso de reinicialização</div><div style="font-size:15px;line-height:22px;margin-top:6px;">O servidor PACS foi reiniciado. Este é um aviso automático para conferência da operação após o reboot.</div></div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dbe4ea;border-radius:8px;margin-bottom:20px;"><tr><td style="padding:16px;background:#f8fafc;font-size:16px;font-weight:bold;color:#17324d;">Data e hora do reinício</td></tr><tr><td style="padding:16px;"><div style="font-size:23px;line-height:29px;font-weight:bold;color:#04546c;">{data_hora}</div></td></tr></table>
+        <div style="border-left:4px solid #d99a00;background:#fff8e7;padding:16px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong style="color:#8a5a00;">Ação recomendada</strong><br>Confirme que os serviços essenciais voltaram a operar normalmente após a reinicialização.</div>
+        <div style="font-size:16px;font-weight:bold;color:#17324d;margin:0 0 10px;">Checklist de conferência</div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dbe4ea;border-radius:8px;background:#ffffff;font-size:15px;line-height:23px;"><tr><td style="padding:16px;"><span style="color:#029687;font-weight:bold;">•</span> Serviço PACS em execução<br><span style="color:#029687;font-weight:bold;">•</span> Banco de dados operacional<br><span style="color:#029687;font-weight:bold;">•</span> Conexões de rede estabelecidas<br><span style="color:#029687;font-weight:bold;">•</span> Storage montado e acessível<br><span style="color:#029687;font-weight:bold;">•</span> Aplicações auxiliares funcionando</td></tr></table>
+        <p style="font-size:14px;line-height:21px;color:#5b6773;margin:20px 0 0;">Caso o reinício não tenha sido planejado, investigue a causa conforme o procedimento da unidade.</p>
+      </td></tr>
+      <tr><td style="padding:18px 24px;background:#04546c;color:#dbeafe;font-size:12px;line-height:18px;">Desenvolvido por Celio Nora Junior — Analista de Suporte Técnico<br>Monitoramento automático · © {current_year} Polos Tecnologia</td></tr>
+    </table>
+  </td></tr></table>
+</body></html>"""
+    msg.attach(MIMEText(html, 'html', 'utf-8'))
 
     try:
         context = ssl.create_default_context()
@@ -210,6 +64,7 @@ def enviar_email_reinicio():
     except Exception as e:
         print(f"Erro ao enviar o email: {e}")
 
+
 def verificar_envio():
     if os.path.exists(CONTROLE_ARQUIVO):
         with open(CONTROLE_ARQUIVO, 'r') as f:
@@ -221,6 +76,7 @@ def verificar_envio():
                 return False
     return False
 
+
 def acquire_lock():
     lock_file = open(LOCK_FILE, 'w')
     try:
@@ -229,6 +85,7 @@ def acquire_lock():
     except IOError:
         print("Já está rodando.")
         exit(1)
+
 
 if __name__ == '__main__':
     lock_file = acquire_lock()

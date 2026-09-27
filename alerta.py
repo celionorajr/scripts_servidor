@@ -1,283 +1,228 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Envia alerta crítico quando o armazenamento do PACS exige atenção imediata."""
+
+import logging
 import os
-import sys
-from dotenv import load_dotenv
 import smtplib
+import ssl
+import sys
+from dataclasses import dataclass
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
 import psutil
-import logging
-from datetime import datetime
+from dotenv import load_dotenv
 
-load_dotenv("/root/.env")
 
-# Variáveis do .env
-unidade = os.getenv("UNIDADE")
-caminho_hd_principal = os.getenv("HD_PRINCIPAL")
-caminho_hd_backup = os.getenv("HD_BACKUP")
+ENV_FILE = "/root/.env"
+LOG_FILE = "/var/log/alerta.log"
 
-remetente = os.getenv("EMAIL_REMETENTE")
-senha = os.getenv("EMAIL_SENHA")
-smtp_host = os.getenv("EMAIL_SMTP_HOST")
-smtp_port = int(os.getenv("EMAIL_SMTP_PORT"))
-destinatarios = os.getenv("EMAIL_DESTINATARIOS_2").split(",")
 
-limite_uso_hd_principal = int(os.getenv("LIMITE_USO_HD_PRINCIPAL"))
-limite_uso_hd_backup = int(os.getenv("LIMITE_USO_HD_BACKUP"))
+class ConfigurationError(Exception):
+    """Indica uma configuração ausente ou inválida."""
 
-# Logging (compatível com Python 3.6)
-logging.basicConfig(filename='/var/log/alerta.log', level=logging.ERROR)
 
-# Funções
-def verificar_uso_hd(caminho):
+class StorageError(Exception):
+    """Indica que não foi possível consultar um armazenamento."""
+
+
+@dataclass
+class DiskUsage:
+    percent: float
+    total: int
+    used: int
+    free: int
+
+
+@dataclass
+class Settings:
+    unit_name: str
+    principal_path: str
+    backup_path: str
+    sender: str
+    password: str
+    smtp_host: str
+    smtp_port: int
+    recipients: list
+    principal_limit: int
+    backup_limit: int
+
+
+def configure_logging():
     try:
-        uso_hd = psutil.disk_usage(caminho)
-        return uso_hd.percent, uso_hd.total, uso_hd.used, uso_hd.free
-    except Exception as e:
-        logging.error("Erro ao verificar uso do HD {}: {}".format(caminho, e))
-        return 0, 0, 0, 0
+        logging.basicConfig(
+            filename=LOG_FILE,
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(message)s",
+        )
+    except (IOError, OSError):
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+        logging.warning("Não foi possível escrever em %s; usando saída padrão.", LOG_FILE)
 
-def esta_montado(caminho):
-    return any(part.mountpoint == caminho for part in psutil.disk_partitions(all=True))
 
-# Verifica o uso do HD principal
-uso_principal, tamanho_total_principal, tamanho_usado_principal, tamanho_livre_principal = verificar_uso_hd(caminho_hd_principal)
+def required_env(name):
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        raise ConfigurationError("Variável obrigatória ausente: {}".format(name))
+    return value.strip()
 
-# Verifica o uso do HD de backup (se houver)
-if caminho_hd_backup and esta_montado(caminho_hd_backup):
-    uso_backup, tamanho_total_backup, tamanho_usado_backup, tamanho_livre_backup = verificar_uso_hd(caminho_hd_backup)
-else:
-    uso_backup = tamanho_total_backup = tamanho_usado_backup = tamanho_livre_backup = 0
 
-# Verifica se precisa enviar o alerta
-if uso_principal >= limite_uso_hd_principal and (not caminho_hd_backup or uso_backup >= limite_uso_hd_backup):
-
-    # Corpo do email atualizado
-    corpo = f"""
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alerta Polos - Servidor PACS {unidade}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            color: #333;
-            background-color: #f9f9f9;
-            margin: 0;
-            padding: 0;
-        }}
-        .container {{
-            width: 580px;
-            margin: 20px auto;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-        }}
-        .header {{
-            width: 100%;
-            background: linear-gradient(to right, #04546c, #029687);
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }}
-        .logo {{
-            height: 70px;
-            margin-bottom: 15px;
-        }}
-        .content {{
-            padding: 25px;
-        }}
-        .content p {{
-            font-size: 16px;
-            margin-bottom: 15px;
-            line-height: 1.5;
-        }}
-        .alert-title {{
-            background-color: #7cfcef;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            border-left: 5px solid #04546c;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }}
-        th, td {{
-            border: 1px solid #ddd;
-            padding: 10px 8px;
-            text-align: center;
-        }}
-        th {{
-            background-color: #029687;
-            color: white;
-        }}
-        tr:nth-child(even) {{
-            background-color: #f2f9f9;
-        }}
-        .important {{
-            font-weight: bold;
-            color: #04546c;
-            font-size: 18px;
-        }}
-        .footer {{
-            background: linear-gradient(to right, #04546c, #029687);
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }}
-        .footer p {{
-            margin: 5px 0;
-        }}
-        .whatsapp-button {{
-            display: inline-block;
-            background-color: #25D366;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: bold;
-            margin: 15px 0;
-            transition: all 0.3s;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }}
-        .whatsapp-button:hover {{
-            background-color: #128C7E;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-        }}
-        .signature {{
-            margin-top: 5px;
-            text-align: center;
-            color: #04ecd4;
-            font-size: 14px;
-        }}
-        .info-box {{
-            background-color: #f2f9f9;
-            border-left: 5px solid #029687;
-            padding: 15px 20px;
-            margin: 20px 0;
-            border-radius: 6px;
-        }}
-
-        /* Responsivo */
-        @media (max-width: 600px) {{
-            .container {{
-                width: 95%;
-                margin: 10px auto;
-            }}
-            .header {{
-                padding: 15px;
-            }}
-            .logo {{
-                height: 50px;
-            }}
-            .content {{
-                padding: 15px;
-            }}
-            .content p {{
-                font-size: 14px;
-            }}
-            .whatsapp-button {{
-                padding: 10px 18px;
-                font-size: 14px;
-            }}
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <img src="https://i.imgur.com/M4fVy4y.png" alt="Polos Tecnologia" class="logo">
-            <h2 style="margin: 0; font-size: 22px;">⚠️ Alerta de Armazenamento</h2>
-            <p style="margin: 5px 0 0;">Servidor PACS - {unidade}</p>
-        </div>
-
-        <div class="content">
-            <div class="alert-title">
-                <p style="margin: 0; font-size: 16px;">
-                    <strong>Este é um alerta automático do servidor PACS {unidade}</strong>
-                </p>
-            </div>
-
-            <p>Atenção! O uso do HD principal está em <span class="important">{uso_principal}%</span> e está acima do limite de {limite_uso_hd_principal}%!</p>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Disco</th>
-                        <th>Tamanho Total</th>
-                        <th>Espaço Usado</th>
-                        <th>Espaço Livre</th>
-                        <th>Uso (%)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>HD Principal</td>
-                        <td>{tamanho_total_principal / (1024 ** 3):.2f} GB</td>
-                        <td>{tamanho_usado_principal / (1024 ** 3):.2f} GB</td>
-                        <td>{tamanho_livre_principal / (1024 ** 3):.2f} GB</td>
-                        <td>{uso_principal}%</td>
-                    </tr>
-                    <tr>
-                        <td>HD de Backup</td>
-                        <td>{tamanho_total_backup / (1024 ** 3):.2f} GB</td>
-                        <td>{tamanho_usado_backup / (1024 ** 3):.2f} GB</td>
-                        <td>{tamanho_livre_backup / (1024 ** 3):.2f} GB</td>
-                        <td>{uso_backup}%</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="info-box">
-                <p style="margin: 0; font-size: 16px;">
-                    <strong>⚠️ Situação do Backup:</strong><br>
-                    {f"O backup está com {uso_backup}% de uso" if caminho_hd_backup else "Backup não configurado"}
-                    {f", acima do limite de segurança de {limite_uso_hd_backup}%" if caminho_hd_backup and uso_backup >= limite_uso_hd_backup else ""}
-                </p>
-            </div>
-
-            <p class="important">Por favor, entre em contato com a equipe da Polos o mais rápido possível.</p>
-            <p><strong>Recomendamos considerar a expansão do armazenamento com um HD de 6TB.</strong></p>
-        </div>
-
-        <div class="footer">
-            <a href="https://wa.me/559833024038?text=Olá,%20gostaria%20de%20falar%20sobre%20o%20alerta%20do%20HD%20do%20servidor%20PACS%20{unidade}%20que%20está%20com%20{uso_principal}%25%20de%20uso." class="whatsapp-button" target="_blank">
-                📱 Entrar em contato pelo WhatsApp
-            </a>
-            <p>© {datetime.now().year} Polos Tecnologia - Todos os direitos reservados</p>
-            <div class="signature">
-                Desenvolvido por Celio Nora Junior - Analista de Suporte Técnico
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-    msg = MIMEMultipart()
-    msg["From"] = remetente
-    msg["To"] = ", ".join(destinatarios)
-    msg["Subject"] = f"Alerta: Uso do HD do servidor PACS {unidade}"
-    msg.attach(MIMEText(corpo, "html"))
-
+def read_limit(name):
+    raw_value = required_env(name)
     try:
-        server = smtplib.SMTP(smtp_host, smtp_port)
-        server.starttls()
-        server.login(remetente, senha)
-        server.sendmail(remetente, destinatarios, msg.as_string())
-        server.quit()
-        print("Email enviado com sucesso!")
-    except Exception as e:
-        logging.error("Falha ao enviar o email: {}".format(e))
-        print("Falha ao enviar o email: {}".format(e))
-else:
-    print("Condições para envio de alerta não foram atendidas.")
-    print("HD Principal: {}% | Backup: {}%".format(uso_principal, uso_backup))
+        value = int(raw_value)
+    except ValueError:
+        raise ConfigurationError("{} deve ser um número inteiro".format(name))
+    if not 0 <= value <= 100:
+        raise ConfigurationError("{} deve estar entre 0 e 100".format(name))
+    return value
+
+
+def load_settings():
+    load_dotenv(ENV_FILE)
+    recipients = [item.strip() for item in required_env("EMAIL_DESTINATARIOS_2").split(",") if item.strip()]
+    if not recipients:
+        raise ConfigurationError("EMAIL_DESTINATARIOS_2 não possui destinatários válidos")
+    try:
+        smtp_port = int(required_env("EMAIL_SMTP_PORT"))
+    except ValueError:
+        raise ConfigurationError("EMAIL_SMTP_PORT deve ser um número inteiro")
+    return Settings(
+        unit_name=required_env("UNIDADE"),
+        principal_path=required_env("HD_PRINCIPAL"),
+        backup_path=(os.getenv("HD_BACKUP") or "").strip(),
+        sender=required_env("EMAIL_REMETENTE"),
+        password=required_env("EMAIL_SENHA"),
+        smtp_host=required_env("EMAIL_SMTP_HOST"),
+        smtp_port=smtp_port,
+        recipients=recipients,
+        principal_limit=read_limit("LIMITE_USO_HD_PRINCIPAL"),
+        backup_limit=read_limit("LIMITE_USO_HD_BACKUP"),
+    )
+
+
+def is_mounted(path):
+    try:
+        return any(part.mountpoint == path for part in psutil.disk_partitions(all=True))
+    except Exception as error:
+        raise StorageError("Não foi possível verificar a montagem de {}: {}".format(path, error))
+
+
+def get_disk_usage(path):
+    try:
+        usage = psutil.disk_usage(path)
+        return DiskUsage(usage.percent, usage.total, usage.used, usage.free)
+    except Exception as error:
+        raise StorageError("Não foi possível consultar {}: {}".format(path, error))
+
+
+def format_size(value):
+    if value >= 1024 ** 4:
+        return "{:.2f} TB".format(value / float(1024 ** 4))
+    return "{:.2f} GB".format(value / float(1024 ** 3))
+
+
+def build_email_html(settings, principal, backup_state, backup_usage, reason):
+    if backup_state == "not_configured":
+        backup_message = "HD de backup não configurado."
+        backup_details = "Não há armazenamento de backup definido no arquivo de configuração."
+    elif backup_state == "unmounted":
+        backup_message = "HD de backup configurado, porém não está montado ou disponível no servidor."
+        backup_details = "O ponto de montagem configurado é: <strong>{}</strong>.".format(settings.backup_path)
+    elif backup_state == "error":
+        backup_message = "Não foi possível consultar o HD de backup."
+        backup_details = "O armazenamento de backup deve ser verificado no servidor."
+    else:
+        backup_message = "HD de backup acima do limite configurado ({}%).".format(settings.backup_limit)
+        backup_details = "O backup também atingiu o limite de segurança."
+
+    return """<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f6f8;"><tr><td align="center" style="padding:20px 12px;">
+    <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #dbe4ea;border-radius:12px;overflow:hidden;">
+      <tr><td align="center" style="padding:18px 16px;background:#9b1c1c;color:#ffffff;"><img src="https://i.imgur.com/M4fVy4y.png" alt="Polos Tecnologia" width="80" style="display:block;width:80px;max-width:100%;height:auto;border:0;margin:0 auto 10px;"><div style="font-size:11px;letter-spacing:0.7px;text-transform:uppercase;font-weight:bold;">Alerta crítico de armazenamento</div><div style="font-size:20px;line-height:25px;font-weight:bold;margin-top:5px;">Servidor PACS — {unit}</div></td></tr>
+      <tr><td style="padding:24px;">
+        <div style="border-left:4px solid #b42318;background:#fef3f2;padding:16px;margin-bottom:22px;"><div style="font-size:18px;line-height:25px;font-weight:bold;color:#8a1c16;">Ação imediata necessária</div><div style="font-size:15px;line-height:22px;margin-top:6px;">{reason}</div></div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dbe4ea;border-radius:8px;margin-bottom:20px;"><tr><td style="padding:16px;background:#f8fafc;font-size:16px;font-weight:bold;color:#17324d;">HD principal</td></tr><tr><td style="padding:16px;"><div style="font-size:34px;line-height:38px;font-weight:bold;color:#b42318;">{percent}% usado</div><div style="font-size:14px;color:#5b6773;margin-top:5px;">Limite configurado: {limit}%</div><div style="font-size:15px;line-height:24px;margin-top:14px;">Total: <strong>{total}</strong><br>Utilizado: <strong>{used}</strong><br>Livre: <strong>{free}</strong></div></td></tr></table>
+        <div style="font-size:16px;font-weight:bold;color:#17324d;margin:0 0 10px;">Situação do backup</div><div style="border-left:4px solid #b42318;background:#fff8f7;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong>{backup_message}</strong><br>{backup_details}</div>
+        <p style="font-size:15px;line-height:22px;margin:22px 0 0;">Verifique o armazenamento e contate a equipe responsável para evitar indisponibilidade do PACS.</p>
+      </td></tr><tr><td style="padding:18px 24px;background:#17324d;color:#dbeafe;font-size:12px;line-height:18px;">Mensagem automática do monitoramento do servidor PACS · © {year} Polos Tecnologia</td></tr>
+    </table>
+  </td></tr></table>
+</body></html>""".format(unit=settings.unit_name, reason=reason, percent=principal.percent, limit=settings.principal_limit, total=format_size(principal.total), used=format_size(principal.used), free=format_size(principal.free), backup_message=backup_message, backup_details=backup_details, year=datetime.now().year)
+
+
+def send_email(settings, html):
+    message = MIMEMultipart("alternative")
+    message["From"] = settings.sender
+    message["To"] = ", ".join(settings.recipients)
+    message["Subject"] = "ALERTA CRÍTICO: armazenamento do PACS {}".format(settings.unit_name)
+    message.attach(MIMEText(html, "html", "utf-8"))
+    context = ssl.create_default_context()
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30) as server:
+        server.starttls(context=context)
+        server.login(settings.sender, settings.password)
+        server.sendmail(settings.sender, settings.recipients, message.as_string())
+
+
+def main():
+    configure_logging()
+    try:
+        settings = load_settings()
+        if not is_mounted(settings.principal_path):
+            raise StorageError("HD principal não está montado: {}".format(settings.principal_path))
+        principal = get_disk_usage(settings.principal_path)
+    except (ConfigurationError, StorageError) as error:
+        logging.error("Não foi possível avaliar o alerta: %s", error)
+        print("Erro: {}".format(error), file=sys.stderr)
+        return 1
+    if principal.percent < settings.principal_limit:
+        logging.info("Nenhum alerta: HD principal em %s%% (limite %s%%).", principal.percent, settings.principal_limit)
+        print("HD principal dentro do limite: {}%".format(principal.percent))
+        return 0
+
+    backup_usage = None
+    if not settings.backup_path:
+        backup_state = "not_configured"
+        reason = "O HD principal atingiu o limite e não há HD de backup configurado."
+    else:
+        try:
+            mounted = is_mounted(settings.backup_path)
+        except StorageError as error:
+            backup_state = "error"
+            reason = "O HD principal atingiu o limite e ocorreu erro ao verificar o HD de backup."
+            logging.error("Falha ao verificar o backup: %s", error)
+        else:
+            if not mounted:
+                backup_state = "unmounted"
+                reason = "O HD principal atingiu o limite e o HD de backup não está disponível no servidor."
+            else:
+                try:
+                    backup_usage = get_disk_usage(settings.backup_path)
+                except StorageError as error:
+                    backup_state = "error"
+                    reason = "O HD principal atingiu o limite e ocorreu erro ao consultar o HD de backup."
+                    logging.error("Falha ao consultar o backup: %s", error)
+                else:
+                    if backup_usage.percent < settings.backup_limit:
+                        logging.info("Sem alerta crítico: backup disponível em %s%%.", backup_usage.percent)
+                        print("Backup disponível; o aviso preventivo é responsabilidade do verifica_hd.py.")
+                        return 0
+                    backup_state = "full"
+                    reason = "O HD principal e o HD de backup atingiram os limites configurados."
+    try:
+        send_email(settings, build_email_html(settings, principal, backup_state, backup_usage, reason))
+    except Exception as error:
+        logging.exception("Falha ao enviar alerta crítico: %s", error)
+        print("Falha ao enviar alerta crítico: {}".format(error), file=sys.stderr)
+        return 1
+    logging.warning("Alerta crítico enviado: %s", reason)
+    print("Alerta crítico enviado com sucesso.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
