@@ -22,6 +22,8 @@ read_env_value() {
 
 HD_PRINCIPAL=$(read_env_value "HD_PRINCIPAL")
 HD_BACKUP=$(read_env_value "HD_BACKUP")
+HD_PRINCIPAL_MOUNT=$(read_env_value "HD_PRINCIPAL_MOUNT")
+HD_BACKUP_MOUNT=$(read_env_value "HD_BACKUP_MOUNT")
 BACKUP_LOG_DIR=$(read_env_value "BACKUP_LOG_DIR")
 BACKUP_LOCK_FILE=$(read_env_value "BACKUP_LOCK_FILE")
 BACKUP_STATUS_FILE=$(read_env_value "BACKUP_STATUS_FILE")
@@ -30,6 +32,9 @@ if [ -z "${HD_PRINCIPAL:-}" ] || [ -z "${HD_BACKUP:-}" ]; then
     echo "HD_PRINCIPAL e HD_BACKUP devem estar configurados em $ENV_FILE" >&2
     exit 1
 fi
+
+HD_PRINCIPAL_MOUNT="${HD_PRINCIPAL_MOUNT:-$HD_PRINCIPAL}"
+HD_BACKUP_MOUNT="${HD_BACKUP_MOUNT:-$HD_BACKUP}"
 
 ANO=$(date +%Y)
 MES=$(date +%m)
@@ -60,13 +65,13 @@ fi
 
 echo "Iniciando backup: $(date)" >> "$LOG_FILE"
 
-if ! mountpoint -q "$HD_PRINCIPAL"; then
-    echo "HD principal não está montado: $HD_PRINCIPAL" >> "$LOG_FILE"
+if ! mountpoint -q "$HD_PRINCIPAL_MOUNT"; then
+    echo "Ponto de montagem do HD principal não está disponível: $HD_PRINCIPAL_MOUNT" >> "$LOG_FILE"
     exit 1
 fi
 
-if ! mountpoint -q "$HD_BACKUP"; then
-    echo "HD de backup não está montado: $HD_BACKUP" >> "$LOG_FILE"
+if ! mountpoint -q "$HD_BACKUP_MOUNT"; then
+    echo "Ponto de montagem do HD de backup não está disponível: $HD_BACKUP_MOUNT" >> "$LOG_FILE"
     exit 1
 fi
 

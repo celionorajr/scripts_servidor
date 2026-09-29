@@ -113,6 +113,10 @@ UNIDADE="Hospital ABC"
 # === Caminhos dos HDs ===
 HD_PRINCIPAL=/mnt/storage0
 HD_BACKUP=
+# Use estes campos se os exames estiverem em uma pasta interna do disco montado.
+# Quando vazios, os scripts usam os caminhos acima.
+HD_PRINCIPAL_MOUNT=
+HD_BACKUP_MOUNT=
 
 # === Configurações de E-mail ===
 EMAIL_REMETENTE=suporte@polos.tec.br

@@ -41,7 +41,9 @@ class Settings(object):
         self,
         unit_name,
         principal_path,
+        principal_mount,
         backup_path,
+        backup_mount,
         sender,
         password,
         smtp_host,
@@ -53,7 +55,9 @@ class Settings(object):
     ):
         self.unit_name = unit_name
         self.principal_path = principal_path
+        self.principal_mount = principal_mount
         self.backup_path = backup_path
+        self.backup_mount = backup_mount
         self.sender = sender
         self.password = password
         self.smtp_host = smtp_host
@@ -106,7 +110,9 @@ def load_settings():
     return Settings(
         unit_name=required_env("UNIDADE"),
         principal_path=required_env("HD_PRINCIPAL"),
+        principal_mount=(os.getenv("HD_PRINCIPAL_MOUNT") or required_env("HD_PRINCIPAL")).strip(),
         backup_path=(os.getenv("HD_BACKUP") or "").strip(),
+        backup_mount=(os.getenv("HD_BACKUP_MOUNT") or os.getenv("HD_BACKUP") or "").strip(),
         sender=required_env("EMAIL_REMETENTE"),
         password=required_env("EMAIL_SENHA"),
         smtp_host=required_env("EMAIL_SMTP_HOST"),
@@ -217,8 +223,8 @@ def main():
     configure_logging()
     try:
         settings = load_settings()
-        if not is_mounted(settings.principal_path):
-            raise StorageError("HD principal não está montado: {}".format(settings.principal_path))
+        if not is_mounted(settings.principal_mount):
+            raise StorageError("Ponto de montagem do HD principal não está disponível: {}".format(settings.principal_mount))
         principal = get_disk_usage(settings.principal_path)
     except (ConfigurationError, StorageError) as error:
         logging.error("Não foi possível avaliar o alerta: %s", error)
@@ -235,7 +241,7 @@ def main():
         reason = "O HD principal atingiu o limite e não há HD de backup configurado."
     else:
         try:
-            mounted = is_mounted(settings.backup_path)
+            mounted = is_mounted(settings.backup_mount)
         except StorageError as error:
             backup_state = "error"
             reason = "O HD principal atingiu o limite e ocorreu erro ao verificar o HD de backup."
