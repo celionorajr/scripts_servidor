@@ -190,6 +190,11 @@ def build_email_html(settings, principal, backup_state, backup_usage, reason, la
         backup_message = "HD de backup acima do limite configurado ({}%).".format(settings.backup_limit)
         backup_details = "O backup também atingiu o limite de segurança."
 
+    if backup_usage is not None:
+        backup_metrics = """<div style="margin-top:10px;font-size:14px;line-height:21px;color:#334155;">HD de backup: <strong>{percent}% usado</strong> · Limite configurado: <strong>{limit}%</strong><br>Total: <strong>{total}</strong> · Livre: <strong>{free}</strong></div>""".format(percent=backup_usage.percent, limit=settings.backup_limit, total=format_size(backup_usage.total), free=format_size(backup_usage.free))
+    else:
+        backup_metrics = ""
+
     status_kind, completed_at = last_backup_status
     if status_kind == "success":
         backup_status_card = """<div style="border-left:4px solid #029687;background:#f0fdfa;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong style="color:#04546c;">Status do último backup automático</strong><br>Último backup concluído com sucesso em <strong>{}</strong>.</div>""".format(completed_at)
@@ -207,13 +212,13 @@ def build_email_html(settings, principal, backup_state, backup_usage, reason, la
       <tr><td style="padding:24px;">
         <div style="border-left:4px solid #b42318;background:#fef3f2;padding:16px;margin-bottom:22px;"><div style="font-size:18px;line-height:25px;font-weight:bold;color:#8a1c16;">Ação imediata necessária</div><div style="font-size:15px;line-height:22px;margin-top:6px;">{reason}</div></div>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dbe4ea;border-radius:8px;margin-bottom:20px;"><tr><td style="padding:16px;background:#f8fafc;font-size:16px;font-weight:bold;color:#17324d;">HD principal</td></tr><tr><td style="padding:16px;"><div style="font-size:34px;line-height:38px;font-weight:bold;color:#b42318;">{percent}% usado</div><div style="font-size:14px;color:#5b6773;margin-top:5px;">Limite configurado: {limit}%</div><div style="font-size:15px;line-height:24px;margin-top:14px;">Total: <strong>{total}</strong><br>Utilizado: <strong>{used}</strong><br>Livre: <strong>{free}</strong></div></td></tr></table>
-        <div style="font-size:16px;font-weight:bold;color:#17324d;margin:0 0 10px;">Situação do backup</div><div style="border-left:4px solid #b42318;background:#fff8f7;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong>{backup_message}</strong><br>{backup_details}</div>
+        <div style="font-size:16px;font-weight:bold;color:#17324d;margin:0 0 10px;">Situação do backup</div><div style="border-left:4px solid #b42318;background:#fff8f7;padding:15px;margin-bottom:20px;font-size:15px;line-height:22px;"><strong>{backup_message}</strong><br>{backup_details}{backup_metrics}</div>
         {backup_status_card}
         <p style="font-size:15px;line-height:22px;margin:22px 0 0;">Verifique o armazenamento e contate a equipe responsável para evitar indisponibilidade do PACS.</p>
-      </td></tr><tr><td style="padding:18px 24px;background:#17324d;color:#dbeafe;font-size:12px;line-height:18px;">Mensagem automática do monitoramento do servidor PACS · © {year} Polos Tecnologia</td></tr>
+      </td></tr><tr><td align="center" style="padding:18px 24px;background:#17324d;color:#dbeafe;font-size:12px;line-height:18px;">Mensagem automática do monitoramento do servidor PACS · © {year} Polos Tecnologia<br><span style="display:inline-block;margin-top:4px;color:#ffffff;">Desenvolvido por Célio Nora Júnior</span></td></tr>
     </table>
   </td></tr></table>
-</body></html>""".format(unit=settings.unit_name, reason=reason, percent=principal.percent, limit=settings.principal_limit, total=format_size(principal.total), used=format_size(principal.used), free=format_size(principal.free), backup_message=backup_message, backup_details=backup_details, backup_status_card=backup_status_card, year=datetime.now().year)
+</body></html>""".format(unit=settings.unit_name, reason=reason, percent=principal.percent, limit=settings.principal_limit, total=format_size(principal.total), used=format_size(principal.used), free=format_size(principal.free), backup_message=backup_message, backup_details=backup_details, backup_metrics=backup_metrics, backup_status_card=backup_status_card, year=datetime.now().year)
 
 
 def send_email(settings, html):

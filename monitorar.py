@@ -46,7 +46,7 @@ def enviar_email_reinicio():
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dbe4ea;border-radius:8px;background:#ffffff;font-size:15px;line-height:23px;"><tr><td style="padding:16px;"><span style="color:#029687;font-weight:bold;">•</span> Serviço PACS em execução<br><span style="color:#029687;font-weight:bold;">•</span> Banco de dados operacional<br><span style="color:#029687;font-weight:bold;">•</span> Conexões de rede estabelecidas<br><span style="color:#029687;font-weight:bold;">•</span> Storage montado e acessível<br><span style="color:#029687;font-weight:bold;">•</span> Aplicações auxiliares funcionando</td></tr></table>
         <p style="font-size:14px;line-height:21px;color:#5b6773;margin:20px 0 0;">Caso o reinício não tenha sido planejado, investigue a causa conforme o procedimento da unidade.</p>
       </td></tr>
-      <tr><td style="padding:18px 24px;background:#04546c;color:#dbeafe;font-size:12px;line-height:18px;">Desenvolvido por Celio Nora Junior — Analista de Suporte Técnico<br>Monitoramento automático · © {current_year} Polos Tecnologia</td></tr>
+      <tr><td align="center" style="padding:18px 24px;background:#04546c;color:#dbeafe;font-size:12px;line-height:18px;">Monitoramento automático · © {current_year} Polos Tecnologia<br><span style="display:inline-block;margin-top:4px;color:#ffffff;">Desenvolvido por Célio Nora Júnior</span></td></tr>
     </table>
   </td></tr></table>
 </body></html>"""
