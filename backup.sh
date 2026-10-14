@@ -24,6 +24,8 @@ HD_PRINCIPAL=$(read_env_value "HD_PRINCIPAL")
 HD_BACKUP=$(read_env_value "HD_BACKUP")
 HD_PRINCIPAL_MOUNT=$(read_env_value "HD_PRINCIPAL_MOUNT")
 HD_BACKUP_MOUNT=$(read_env_value "HD_BACKUP_MOUNT")
+BACKUP_DESTINO=$(read_env_value "BACKUP_DESTINO")
+BACKUP_RSYNC_NO_METADATA=$(read_env_value "BACKUP_RSYNC_NO_METADATA")
 BACKUP_LOG_DIR=$(read_env_value "BACKUP_LOG_DIR")
 BACKUP_LOCK_FILE=$(read_env_value "BACKUP_LOCK_FILE")
 BACKUP_STATUS_FILE=$(read_env_value "BACKUP_STATUS_FILE")
@@ -35,13 +37,15 @@ fi
 
 HD_PRINCIPAL_MOUNT="${HD_PRINCIPAL_MOUNT:-$HD_PRINCIPAL}"
 HD_BACKUP_MOUNT="${HD_BACKUP_MOUNT:-$HD_BACKUP}"
+BACKUP_DESTINO="${BACKUP_DESTINO:-$HD_BACKUP}"
+BACKUP_RSYNC_NO_METADATA="${BACKUP_RSYNC_NO_METADATA:-0}"
 
 ANO=$(date +%Y)
 MES=$(date +%m)
 MES=${MES#0}
 
 DIR_ORIGEM="$HD_PRINCIPAL/$ANO/$MES"
-DIR_DESTINO="$HD_BACKUP/$ANO"
+DIR_DESTINO="$BACKUP_DESTINO/$ANO"
 LOG_DIR="${BACKUP_LOG_DIR:-/home/polos/backup_logs}"
 LOG_FILE="$LOG_DIR/rsync_backup_${ANO}-${MES}.log"
 LOCK_FILE="${BACKUP_LOCK_FILE:-/tmp/backup_pacs.lock}"
@@ -75,17 +79,27 @@ if ! mountpoint -q "$HD_BACKUP_MOUNT"; then
     exit 1
 fi
 
+if ! timeout 15 stat "$HD_BACKUP_MOUNT" >/dev/null 2>&1; then
+    echo "HD de backup está inacessível ou desconectado: $HD_BACKUP_MOUNT" >> "$LOG_FILE"
+    exit 1
+fi
+
 if [ ! -d "$DIR_ORIGEM" ]; then
     echo "Origem não encontrada: $DIR_ORIGEM" >> "$LOG_FILE"
     exit 1
 fi
 
-if [ ! -d "$DIR_DESTINO" ]; then
-    echo "Destino não encontrado: $DIR_DESTINO" >> "$LOG_FILE"
+if ! mkdir -p "$DIR_DESTINO"; then
+    echo "Não foi possível criar ou acessar o destino: $DIR_DESTINO" >> "$LOG_FILE"
     exit 1
 fi
 
-if rsync -havPuz --partial "$DIR_ORIGEM" "$DIR_DESTINO" >> "$LOG_FILE" 2>&1; then
+RSYNC_ARGS=(-havPuz --partial --stats)
+if [ "$BACKUP_RSYNC_NO_METADATA" = "1" ]; then
+    RSYNC_ARGS+=(--no-owner --no-group --no-perms)
+fi
+
+if rsync "${RSYNC_ARGS[@]}" "$DIR_ORIGEM" "$DIR_DESTINO" >> "$LOG_FILE" 2>&1; then
     STATUS_DIR=$(dirname "$STATUS_FILE")
     STATUS_TEMP_FILE="${STATUS_FILE}.tmp.$$"
     if ! mkdir -p "$STATUS_DIR" || ! (umask 077; printf '{\n  "status": "success",\n  "completed_at": "%s"\n}\n' "$(date '+%d/%m/%Y às %H:%M')" > "$STATUS_TEMP_FILE" && mv "$STATUS_TEMP_FILE" "$STATUS_FILE"); then

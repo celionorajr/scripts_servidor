@@ -136,6 +136,10 @@ LOCK_FILE=/tmp/monitor_lock
 TEMPO_MINIMO_ENVIO=300
 
 # === Controle do backup de imagens ===
+# Opcional: destino base diferente de HD_BACKUP, usado por unidades com subpastas remotas.
+BACKUP_DESTINO=
+# Defina como 1 para destinos que nao aceitam preservar dono, grupo e permissoes (ex.: SSHFS).
+BACKUP_RSYNC_NO_METADATA=0
 BACKUP_LOG_DIR=/home/polos/backup_logs
 BACKUP_LOCK_FILE=/tmp/backup_pacs.lock
 BACKUP_STATUS_FILE=/root/ultimo_backup_sucesso.json
