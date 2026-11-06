@@ -66,11 +66,25 @@ class Settings(object):
 
 
 def configure_logging():
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     try:
-        logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+        handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+        handler.setFormatter(formatter)
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
     except (IOError, OSError):
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
         logging.warning("Não foi possível escrever em %s; usando saída padrão.", LOG_FILE)
+
+
+def console(message, stream=None):
+    stream = stream or sys.stdout
+    text = str(message)
+    try:
+        stream.write(text + "\n")
+    except UnicodeEncodeError:
+        stream.write(text.encode("ascii", "replace").decode("ascii") + "\n")
 
 
 def required_env(name):
@@ -177,38 +191,38 @@ def main():
         principal = get_disk_usage(settings.principal_path)
     except (ConfigurationError, StorageError) as error:
         logging.error("Não foi possível avaliar o aviso preventivo: %s", error)
-        print("Erro: {}".format(error), file=sys.stderr)
+        console("Erro: {}".format(error), sys.stderr)
         return 1
     if principal.percent < settings.principal_limit:
         logging.info("Nenhum aviso: HD principal em %s%% (limite %s%%).", principal.percent, settings.principal_limit)
-        print("HD principal dentro do limite: {}%".format(principal.percent))
+        console("HD principal dentro do limite: {}%".format(principal.percent))
         return 0
     if not settings.backup_path:
         logging.info("Sem aviso preventivo: backup não configurado; alerta.py deve tratar o cenário crítico.")
-        print("Backup não configurado; nenhum aviso preventivo será enviado.")
+        console("Backup não configurado; nenhum aviso preventivo será enviado.")
         return 0
     try:
         if not is_mounted(settings.backup_mount):
             logging.warning("Sem aviso preventivo: backup não montado em %s.", settings.backup_path)
-            print("Backup configurado, mas não montado; nenhum aviso preventivo será enviado.")
+            console("Backup configurado, mas não montado; nenhum aviso preventivo será enviado.")
             return 0
         backup = get_disk_usage(settings.backup_path)
     except StorageError as error:
         logging.error("Sem aviso preventivo: erro ao consultar backup: %s", error)
-        print("Erro ao consultar backup; nenhum aviso preventivo será enviado.", file=sys.stderr)
+        console("Erro ao consultar backup; nenhum aviso preventivo será enviado.", sys.stderr)
         return 1
     if backup.percent >= settings.backup_limit:
         logging.info("Sem aviso preventivo: backup em %s%% (limite %s%%).", backup.percent, settings.backup_limit)
-        print("Backup atingiu o limite; o cenário crítico é responsabilidade do alerta.py.")
+        console("Backup atingiu o limite; o cenário crítico é responsabilidade do alerta.py.")
         return 0
     try:
         send_email(settings, build_email_html(settings, principal, backup))
     except Exception as error:
         logging.exception("Falha ao enviar aviso preventivo: %s", error)
-        print("Falha ao enviar aviso preventivo: {}".format(error), file=sys.stderr)
+        console("Falha ao enviar aviso preventivo: {}".format(error), sys.stderr)
         return 1
     logging.warning("Aviso preventivo enviado: principal %s%%, backup %s%%.", principal.percent, backup.percent)
-    print("Aviso preventivo enviado com sucesso.")
+    console("Aviso preventivo enviado com sucesso.")
     return 0
 
 

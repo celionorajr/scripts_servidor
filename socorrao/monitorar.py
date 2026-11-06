@@ -39,10 +39,24 @@ def required(values, name):
 
 
 def configure_logging():
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     try:
-        logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+        handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+        handler.setFormatter(formatter)
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
     except (IOError, OSError):
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+
+def console(message, stream=None):
+    stream = stream or sys.stdout
+    text = str(message)
+    try:
+        stream.write(text + "\n")
+    except UnicodeEncodeError:
+        stream.write(text.encode("ascii", "replace").decode("ascii") + "\n")
 
 
 def load_settings():
@@ -104,21 +118,21 @@ def main():
         try:
             fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError:
-            print("Monitoramento já está em execução.")
+            console("Monitoramento já está em execução.")
             return 0
         try:
             if was_sent_recently(settings):
-                print("Já foi enviado recentemente; nenhum novo aviso será enviado.")
+                console("Já foi enviado recentemente; nenhum novo aviso será enviado.")
                 return 0
             send_email(settings)
             logging.info("Aviso de reinicialização enviado para %s", settings["unit"])
-            print("Email de reinicialização enviado com sucesso.")
+            console("Email de reinicialização enviado com sucesso.")
             return 0
         finally:
             lock_file.close()
     except Exception as error:
         logging.exception("Falha no monitoramento de reinicialização: %s", error)
-        print("Erro: {}".format(error), file=sys.stderr)
+        console("Erro: {}".format(error), sys.stderr)
         return 1
 
 

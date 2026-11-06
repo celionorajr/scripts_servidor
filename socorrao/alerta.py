@@ -65,15 +65,25 @@ class Settings(object):
 
 
 def configure_logging():
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     try:
-        logging.basicConfig(
-            filename=LOG_FILE,
-            level=logging.INFO,
-            format="%(asctime)s %(levelname)s %(message)s",
-        )
+        handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+        handler.setFormatter(formatter)
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
     except (IOError, OSError):
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
         logging.warning("Não foi possível escrever em %s; usando saída padrão.", LOG_FILE)
+
+
+def console(message, stream=None):
+    stream = stream or sys.stdout
+    text = str(message)
+    try:
+        stream.write(text + "\n")
+    except UnicodeEncodeError:
+        stream.write(text.encode("ascii", "replace").decode("ascii") + "\n")
 
 
 def load_env_file(path):
@@ -160,7 +170,7 @@ def get_last_backup_status(path):
     if not os.path.exists(path):
         return "missing", None
     try:
-        with open(path, "r") as status_file:
+        with open(path, "r", encoding="utf-8") as status_file:
             status = json.load(status_file)
     except (IOError, OSError, ValueError) as error:
         logging.error("Não foi possível ler o status do último backup: %s", error)
@@ -243,11 +253,11 @@ def main():
         principal = get_disk_usage(settings.principal_path)
     except (ConfigurationError, StorageError) as error:
         logging.error("Não foi possível avaliar o alerta: %s", error)
-        print("Erro: {}".format(error), file=sys.stderr)
+        console("Erro: {}".format(error), sys.stderr)
         return 1
     if principal.percent < settings.principal_limit:
         logging.info("Nenhum alerta: HD principal em %s%% (limite %s%%).", principal.percent, settings.principal_limit)
-        print("HD principal dentro do limite: {}%".format(principal.percent))
+        console("HD principal dentro do limite: {}%".format(principal.percent))
         return 0
 
     backup_usage = None
@@ -275,7 +285,7 @@ def main():
                 else:
                     if backup_usage.percent < settings.backup_limit:
                         logging.info("Sem alerta crítico: backup disponível em %s%%.", backup_usage.percent)
-                        print("Backup disponível; o aviso preventivo é responsabilidade do verifica_hd.py.")
+                        console("Backup disponível; o aviso preventivo é responsabilidade do verifica_hd.py.")
                         return 0
                     backup_state = "full"
                     reason = "O HD principal e o HD de backup atingiram os limites configurados."
@@ -284,10 +294,10 @@ def main():
         send_email(settings, build_email_html(settings, principal, backup_state, backup_usage, reason, last_backup_status))
     except Exception as error:
         logging.exception("Falha ao enviar alerta crítico: %s", error)
-        print("Falha ao enviar alerta crítico: {}".format(error), file=sys.stderr)
+        console("Falha ao enviar alerta crítico: {}".format(error), sys.stderr)
         return 1
     logging.warning("Alerta crítico enviado: %s", reason)
-    print("Alerta crítico enviado com sucesso.")
+    console("Alerta crítico enviado com sucesso.")
     return 0
 
 

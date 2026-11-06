@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 import time
 import smtplib
 from dotenv import load_dotenv
@@ -21,6 +22,15 @@ UNIDADE = os.getenv("UNIDADE")
 CONTROLE_ARQUIVO = os.getenv("CONTROLE_ARQUIVO")
 TEMPO_MINIMO_ENVIO = int(os.getenv("TEMPO_MINIMO_ENVIO"))
 LOCK_FILE = os.getenv("LOCK_FILE")
+
+
+def console(message, stream=None):
+    stream = stream or sys.stdout
+    text = str(message)
+    try:
+        stream.write(text + "\n")
+    except UnicodeEncodeError:
+        stream.write(text.encode("ascii", "replace").decode("ascii") + "\n")
 
 
 def enviar_email_reinicio():
@@ -60,9 +70,9 @@ def enviar_email_reinicio():
             server.send_message(msg)
             with open(CONTROLE_ARQUIVO, 'w') as f:
                 f.write(str(time.time()))
-            print("Email de reinicialização enviado com sucesso.")
+            console("Email de reinicialização enviado com sucesso.")
     except Exception as e:
-        print(f"Erro ao enviar o email: {e}")
+        console("Erro ao enviar o email: {}".format(e))
 
 
 def verificar_envio():
@@ -83,7 +93,7 @@ def acquire_lock():
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         return lock_file
     except IOError:
-        print("Já está rodando.")
+        console("Já está rodando.")
         exit(1)
 
 
@@ -94,7 +104,7 @@ if __name__ == '__main__':
             enviar_email_reinicio()
         else:
             tempo_restante = TEMPO_MINIMO_ENVIO - (time.time() - float(open(CONTROLE_ARQUIVO).read()))
-            print(f"Já foi enviado recentemente. Próximo envio em {int(tempo_restante/60)} minutos.")
+            console("Já foi enviado recentemente. Próximo envio em {} minutos.".format(int(tempo_restante/60)))
     except FileNotFoundError:
         enviar_email_reinicio()
     finally:
