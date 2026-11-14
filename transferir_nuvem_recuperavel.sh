@@ -53,7 +53,7 @@ if ! command -v rsync >/dev/null 2>&1 || ! command -v flock >/dev/null 2>&1; the
 fi
 
 mkdir -p "$LOG_DIR" || exit 1
-LOG_FILE="$LOG_DIR/backup_nuvem_$ANO_meses_$(printf '%s' "$MESES" | tr ' ' '-')_$(date +%F_%H-%M-%S).log"
+LOG_FILE="$LOG_DIR/backup_nuvem_${ANO}_meses_$(printf '%s' "$MESES" | tr ' ' '-')_$(date +%F_%H-%M-%S).log"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
